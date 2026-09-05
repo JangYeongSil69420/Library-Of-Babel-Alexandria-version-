@@ -6,6 +6,23 @@ The repository includes two distinct implementations:
 1. **`library_of_alexandria_v81.html`**: The complete 3D environment, procedural textures, interactive elevator, and procedural noise text engine.
 2. **`true_babel.html`**: The mathematical **True Digital Babel** engine, replacing pseudo-random loops with an exact, arbitrary-precision $O(1)$ bijection using native JavaScript `BigInt`.
 
+
+
+<p align="center">
+  <img src="images/1.png" width="48%" />
+  <img src="images/2.png" width="48%" />
+</p>
+<p align="center">
+  <img src="images/3.png" width="31%" />
+  <img src="images/4.png" width="31%" />
+  <img src="images/5.png" width="31%" />
+</p>
+
+
+
+
+
+
 ---
 
 # 👥 Credits & Attribution
