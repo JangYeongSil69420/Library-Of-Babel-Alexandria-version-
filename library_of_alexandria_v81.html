@@ -1,0 +1,2173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Great Library of Alexandria</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{overflow:hidden;background:#1a0f0a;font-family:'Georgia',serif}
+        canvas{display:block}
+        #vignette{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:40;
+            background:radial-gradient(ellipse at center, rgba(0,0,0,0) 52%, rgba(10,4,0,0.55) 100%)}
+        #fade{position:fixed;top:0;left:0;width:100%;height:100%;background:#000;opacity:0;pointer-events:none;z-index:940}
+        #blocker{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;justify-content:center;align-items:center;z-index:100;cursor:pointer;transition:opacity 0.3s}
+        #blocker.hidden{opacity:0;pointer-events:none}
+        #instructions{text-align:center;color:#ffd700;padding:20px}
+        #instructions h1{font-size:42px;margin-bottom:20px;text-shadow:0 0 20px rgba(255,215,0,0.5)}
+        #instructions p{font-size:16px;color:#c9a227;margin:8px 0}
+        #crosshair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:rgba(255,215,0,0.85);box-shadow:0 0 6px rgba(255,215,0,0.8);z-index:50;pointer-events:none}
+        #prompt{position:fixed;top:58%;left:50%;transform:translateX(-50%);color:#ffd700;font-size:17px;background:rgba(0,0,0,0.82);padding:10px 22px;border:2px solid #ffd700;border-radius:8px;z-index:50;display:none;pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+        #hud{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);color:#ffd700;font-size:13px;background:rgba(0,0,0,0.6);padding:8px 16px;border-radius:5px;z-index:50;white-space:nowrap}
+        #level-display{position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#ffd700;font-size:14px;background:rgba(0,0,0,0.6);padding:6px 14px;border-radius:4px;z-index:50}
+        #toast{position:fixed;bottom:64px;left:50%;transform:translateX(-50%);color:#ffe9a8;font-size:16px;background:rgba(40,20,5,0.88);border:1px solid #c9a227;padding:8px 20px;border-radius:6px;z-index:960;display:none;white-space:nowrap}
+        #book-viewer{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:1000;display:none;justify-content:center;align-items:center}
+        .book-container{display:flex;width:85%;max-width:1100px;height:75vh;background:#2a1810;border-radius:8px;overflow:hidden}
+        .book-cover{width:280px;padding:30px;display:flex;flex-direction:column;justify-content:center;align-items:center;border-right:4px solid #2a1810;flex-shrink:0}
+        .book-cover h1{color:#ffd700;font-size:22px;text-align:center;line-height:1.4}
+        .book-cover .ornament{width:60%;height:2px;background:#ffd700;margin:15px 0}
+        .book-cover .location{color:#ffd700;font-size:11px;text-align:center;opacity:0.75;line-height:1.6}
+        .book-page{flex:1;background:#f5f0e0;padding:35px;overflow-y:auto;font-size:13px;line-height:1.9;color:#2a1810}
+        .book-page::-webkit-scrollbar{width:8px}
+        .book-page::-webkit-scrollbar-track{background:#d4c4a8}
+        .book-page::-webkit-scrollbar-thumb{background:#8b4513;border-radius:4px}
+        #close-book{position:fixed;top:15px;right:15px;background:#8b0000;color:#ffd700;border:2px solid #ffd700;padding:8px 18px;font-size:14px;cursor:pointer;border-radius:4px;z-index:1001}
+        #close-book:hover{background:#a50000}
+        #elev-ui{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:900;display:none;justify-content:center;align-items:center}
+        #elev-panel{background:linear-gradient(160deg,#3a2412,#1d1006);border:2px solid #c9a227;border-radius:10px;padding:30px 36px;text-align:center;box-shadow:0 0 60px rgba(201,162,39,0.25)}
+        #elev-panel h2{color:#ffd700;font-size:28px;margin-bottom:6px}
+        #elev-panel p{color:#c9a227;font-size:13px;margin-bottom:14px}
+        #elev-input{font-size:26px;width:220px;text-align:center;padding:8px;background:#0d0803;color:#ffd700;border:1px solid #c9a227;border-radius:6px;font-family:'Georgia',serif}
+        #book-input, #book-find, #book-exact, #book-intitle, #book-titleword, #book-volume{font-size:17px;width:240px;text-align:center;padding:8px;background:#0d0803;color:#ffe9a8;border:1px solid #c9a227;border-radius:6px;font-family:'Georgia',serif}
+        #book-input::placeholder, #book-find::placeholder, #book-exact::placeholder, #book-intitle::placeholder, #book-titleword::placeholder, #book-volume::placeholder{color:#8a6d2f;font-style:italic}
+        #elev-panel .find-label{margin-top:14px !important;margin-bottom:8px !important;}
+        #elev-panel .find-sub{margin-top:10px !important;margin-bottom:8px !important;}
+        .book-page mark.found{background:#ffd700;color:#2a1810;padding:0 2px;border-radius:2px;}
+        #elev-panel .row{margin-top:16px}
+        #elev-panel button{font-size:16px;padding:8px 24px;margin:0 6px;border-radius:6px;cursor:pointer;font-family:'Georgia',serif}
+        #elev-go{background:#8b4513;color:#ffd700;border:2px solid #ffd700}
+        #elev-go:hover{background:#a55a1a}
+        #elev-cancel{background:transparent;color:#c9a227;border:1px solid #c9a227}
+        #find-next{background:transparent;color:#ffe9a8;border:1px solid #ffe9a8}
+        #elev-status{color:#ff9a5a !important;margin-top:12px !important;min-height:18px}
+        #elev-btn{position:fixed;bottom:20px;right:20px;color:#ffd700;font-size:14px;background:rgba(40,20,5,0.8);border:2px solid #c9a227;padding:10px 16px;border-radius:8px;z-index:60;cursor:pointer;font-family:'Georgia',serif}
+        #elev-btn:hover{background:rgba(139,69,19,0.9)}
+        #music-btn{position:fixed;bottom:72px;right:20px;color:#ffd700;font-size:13px;background:rgba(40,20,5,0.8);border:1px solid #c9a227;padding:7px 12px;border-radius:8px;z-index:60;cursor:pointer;font-family:'Georgia',serif}
+        #music-btn:hover{background:rgba(139,69,19,0.9)}
+        #ver{position:fixed;bottom:20px;left:20px;color:#c9a227;font-size:11px;background:rgba(0,0,0,0.6);padding:4px 8px;border-radius:4px;z-index:60}
+    </style>
+</head>
+<body>
+    <div id="vignette"></div>
+    <div id="fade"></div>
+    <div id="blocker"><div id="instructions">
+        <h1>The Great Library of Alexandria</h1>
+        <p style="color:#ffe9a8;font-size:13px;letter-spacing:2px;">— BUILD v81 · next rooms unmistakable, lockups explained —</p>
+        <p>WASD Move &nbsp;|&nbsp; SHIFT Run &nbsp;|&nbsp; MOUSE Look &nbsp;|&nbsp; E Read Book &nbsp;|&nbsp; F Elevator &nbsp;|&nbsp; M Music &nbsp;|&nbsp; SPACE Jump</p>
+        <p>Climb the <b>east stairs</b> or ride the <b>west elevator</b> to any of the infinite floors — every floor has new books.</p>
+        <p style="margin-top:24px;font-style:italic">Click to enter</p>
+    </div></div>
+
+    <div id="crosshair"></div>
+    <div id="prompt">Press E to read</div>
+    <div id="level-display">Floor 0</div>
+    <div id="toast"></div>
+    <div id="hud">WASD Move | SHIFT Run | E Read | F Elevator | SPACE Jump</div>
+    <button id="elev-btn">⚱ Elevator (F)</button>
+    <button id="music-btn">♪ Music: on</button>
+    <div id="ver">build v81</div>
+    <div id="elev-ui">
+        <div id="elev-panel">
+            <h2>▼ Elevator ▲</h2>
+            <p id="elev-where">Cabin at Floor 0</p>
+            <input id="elev-input" type="number" min="-9000000000" max="9000000000" step="1" value="1">
+            <div class="row">
+                <button id="elev-go">Take me there</button>
+                <button id="find-next" style="display:none">Find next →</button>
+                <button id="elev-cancel">Cancel</button>
+            </div>
+            <p class="find-label">— exact book title —</p>
+            <input id="book-input" type="text" maxlength="1000" placeholder="e.g. xQ9 fH2d…" autocomplete="off">
+            <p class="find-sub">— words in the book —</p>
+            <input id="book-find" type="text" maxlength="1000" placeholder="e.g. eternity…" autocomplete="off">
+            <p class="find-sub">— exact string, spaces and all —</p>
+            <input id="book-exact" type="text" maxlength="1000" placeholder="e.g. ab cd…" autocomplete="off">
+            <p class="find-sub">— title contains —</p>
+            <input id="book-intitle" type="text" maxlength="1000" placeholder="e.g. fH2…" autocomplete="off">
+            <p class="find-sub">— title has the exact word —</p>
+            <input id="book-titleword" type="text" maxlength="1000" placeholder="e.g. cat…" autocomplete="off">
+            <p class="find-sub">— volume number —</p>
+            <input id="book-volume" type="text" maxlength="20" placeholder="e.g. 5007266…" autocomplete="off">
+            <p id="elev-status"></p>
+        </div>
+    </div>
+    <div id="book-viewer">
+        <button id="close-book">Close (ESC)</button>
+        <div class="book-container">
+            <div class="book-cover" id="book-cover">
+                <div class="ornament"></div>
+                <h1 id="book-title"></h1>
+                <div class="ornament"></div>
+                <div class="location" id="book-location"></div>
+            </div>
+            <div class="book-page" id="book-content"></div>
+        </div>
+    </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ================= Config =================
+const CW = 16, CH = 6, HALF = CW / 2;
+window.addEventListener('error', function (e) {
+    const v = document.getElementById('ver');
+    if (v) v.textContent = 'JS ERR: ' + (e.message || 'unknown');
+});
+const SHOT = new URLSearchParams(location.search).get('shot');
+const EYE = 1.7;
+const WALK = 4.6, RUN = 7.6;
+// FLOATING OPEN-RISER STAIR HALL (v31, STAIRS_eXAMPLE.png): pale-oak treads float
+// with open risers on a single black-steel spine — the stair well now tightly hugs the
+// flight (no empty half). Light still passes between treads. Thin black posts + steel
+// handrail + cables guard both open sides.
+const FX0 = 4.45, FX1 = 6.35, FCX = (FX0 + FX1) / 2;
+// legacy void behind stairs — kept for save compat, no longer cuts the slab
+const VOID_X0 = 6.35, VOID_X1 = 7.87;
+const SN = 12, SRUN = 0.75, SRISE = CH / SN;
+const SZ0 = -4.0, SZ1 = SZ0 + SN * SRUN, SZT = SZ1 + 0.03;
+// v31: well exactly = flight footprint (+3cm tuck under slab), no empty eastern shaft
+const HOLE_S = { x0: FX0 + 0.03, x1: FX1 - 0.03, z0: SZ0 + 0.03, z1: SZ1 - 0.01 };
+// Elevator shaft on the west side
+const ELEV = { x0: -7.25, x1: -4.75, z0: -6.35, z1: -2.85, cx: -6.0, cz: -4.6 };
+const CAB = { w: 2.0, d: 2.6, h: 4.5, doorW: 1.6 };
+const PLAY = HALF - 1.3;
+
+// Coordinate rebase: only 3 true floors ever exist, rendered near origin.
+// True level L renders at L*CH + YSHIFT, with YSHIFT = -baseTrue*CH.
+let YSHIFT = 0, baseTrue = 0;
+
+let scene, camera, renderer, clock;
+let yaw = 0, pitch = 0, vy = 0, onGround = true;
+let locked = false, bookOpen = false, uiOpen = false;
+let playerY = EYE, eyeH = EYE, safeTrue = 0;
+let pos = new THREE.Vector3(-1, 0, -2);
+const levels = {};
+const booksByLevel = {};
+const doorsByLevel = {};
+const flames = [];
+const dusties = [];
+let nearBook = null, nearElev = false;
+let lastRay = 0;
+const keys = {};
+
+const elev = { busy: false, phase: 'idle', from: 0, to: 0, cabinY: 0, cabinLevel: 0, doorT: 1, pt: 0 };
+let cabinG = null, cabinDoors = null;
+
+// ================= Procedural textures =================
+function mkTex(sz, fn) {
+    const c = document.createElement('canvas');
+    c.width = c.height = sz;
+    fn(c.getContext('2d'), sz, sz);
+    const t = new THREE.CanvasTexture(c);
+    t.encoding = THREE.sRGBEncoding;
+    return t;
+}
+const floorTex = mkTex(512, (x, w, h) => {
+    x.fillStyle = '#c8a028'; x.fillRect(0, 0, w, h);
+    const T = 128;
+    for (let ty = 0; ty < h; ty += T) {
+        for (let tx = 0; tx < w; tx += T) {
+            const alt = ((tx + ty) / T) % 2 === 0;
+            x.fillStyle = alt ? '#a98822' : '#96741c';
+            x.fillRect(tx + 2, ty + 2, T - 4, T - 4);
+            for (let i = 0; i < 26; i++) {
+                x.strokeStyle = `rgba(255,240,200,${0.05 + Math.random() * 0.08})`;
+                x.lineWidth = 1;
+                const vx = tx + Math.random() * T, vy = ty + Math.random() * T;
+                x.beginPath(); x.moveTo(vx, vy);
+                x.lineTo(vx + (Math.random() - 0.5) * 40, vy + (Math.random() - 0.5) * 40); x.stroke();
+            }
+            x.fillStyle = '#7a1f1f';
+            x.save(); x.translate(tx, ty); x.rotate(Math.PI / 4);
+            x.fillRect(-9, -9, 18, 18); x.restore();
+            x.strokeStyle = '#6e5600'; x.lineWidth = 3;
+            x.strokeRect(tx + 1.5, ty + 1.5, T - 3, T - 3);
+        }
+    }
+});
+floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
+floorTex.repeat.set(2, 2);
+const wallTex = mkTex(256, (x, w, h) => {
+    x.fillStyle = '#d9c9ab'; x.fillRect(0, 0, w, h);
+    let y = 0, off = false;
+    for (let r = 0; r < 8; r++) {
+        const ro = off ? 32 : 0;
+        for (let c = 0; c < 4; c++) {
+            x.strokeStyle = `rgba(145,125,105,${0.4 + Math.random() * 0.2})`;
+            x.strokeRect(ro + c * 64, y, 64, 32);
+        }
+        y += 32; off = !off;
+    }
+    for (let i = 0; i < 250; i++) {
+        x.fillStyle = `rgba(120,100,85,${Math.random() * 0.12})`;
+        x.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    }
+});
+const bannerTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 256;
+    const x = c.getContext('2d');
+    x.fillStyle = '#5c1414'; x.fillRect(0, 0, 128, 256);
+    x.strokeStyle = '#c9a227'; x.lineWidth = 5; x.strokeRect(8, 8, 112, 240);
+    x.strokeStyle = '#ffd700'; x.lineWidth = 4;
+    x.beginPath(); x.arc(64, 88, 30, 0, Math.PI * 2); x.stroke();
+    x.fillStyle = '#ffd700';
+    x.beginPath(); x.arc(64, 88, 10, 0, Math.PI * 2); x.fill();
+    x.save(); x.translate(64, 168); x.rotate(Math.PI / 4);
+    x.strokeRect(-22, -22, 44, 44); x.restore();
+    for (let i = 0; i < 5; i++) {
+        x.fillStyle = i % 2 ? '#c9a227' : '#5c1414';
+        x.beginPath(); x.moveTo(14 + i * 20, 256); x.lineTo(24 + i * 20, 238); x.lineTo(34 + i * 20, 256); x.fill();
+    }
+    return new THREE.CanvasTexture(c);
+})();
+const stoneTex = mkTex(128, (x, w, h) => {
+    x.fillStyle = '#8a7154'; x.fillRect(0, 0, w, h);
+    for (let i = 0; i < 12; i++) {
+        x.fillStyle = `rgba(${100 + ~~(Math.random() * 30)},${85 + ~~(Math.random() * 25)},${60 + ~~(Math.random() * 20)},0.3)`;
+        x.beginPath(); x.arc(Math.random() * w, Math.random() * h, 12 + Math.random() * 22, 0, Math.PI * 2); x.fill();
+    }
+    for (let i = 0; i < 200; i++) {
+        x.fillStyle = Math.random() < 0.5 ? `rgba(60,48,34,${Math.random() * 0.15})` : `rgba(235,220,190,${Math.random() * 0.1})`;
+        x.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    }
+    x.fillStyle = 'rgba(50,40,28,0.5)';
+    for (let py = 32; py < h; py += 32) x.fillRect(0, py, w, 2);
+});
+const stairTex = mkTex(256, (x, w, h) => {
+    x.fillStyle = '#7b5733'; x.fillRect(0, 0, w, h);
+    for (let py = 0; py < h; py += 64) {
+        x.fillStyle = 'rgba(40,25,12,0.55)'; x.fillRect(0, py, w, 3);
+        x.fillStyle = 'rgba(255,225,170,0.10)'; x.fillRect(0, py + 3, w, 2);
+    }
+    for (let i = 0; i < 110; i++) {
+        const gy = Math.random() * h;
+        x.strokeStyle = `rgba(${40 + ~~(Math.random() * 30)},${25 + ~~(Math.random() * 20)},${10 + ~~(Math.random() * 12)},${0.12 + Math.random() * 0.2})`;
+        x.lineWidth = 1 + Math.random() * 1.5;
+        x.beginPath(); x.moveTo(-10, gy);
+        x.bezierCurveTo(w * 0.3, gy + (Math.random() - 0.5) * 10, w * 0.6, gy + (Math.random() - 0.5) * 10, w + 10, gy + (Math.random() - 0.5) * 6);
+        x.stroke();
+    }
+    for (let i = 0; i < 5; i++) {
+        const kx = Math.random() * w, ky = Math.random() * h;
+        x.strokeStyle = 'rgba(45,28,14,0.5)';
+        for (let r = 2; r < 9; r += 2) { x.beginPath(); x.ellipse(kx, ky, r * 1.6, r, 0, 0, Math.PI * 2); x.stroke(); }
+    }
+});
+stairTex.wrapS = stairTex.wrapT = THREE.RepeatWrapping;
+
+// ================= Shared materials / geometry =================
+let M = {}, G = {};
+const BOOK_COLORS = [0x8b0000, 0x1f3a8b, 0x1f6b2e, 0x4a2c8b, 0x8b4513, 0x8b7300, 0x0f6b6b, 0x8b0f45, 0x2f4f4f, 0x5c1010];
+let bookMats = [];
+const bookGeoCache = {};
+const planeGeoCache = {};
+function bookGeo(bw, bh, bd) {
+    const k = bw.toFixed(3) + '|' + bh.toFixed(3) + '|' + bd.toFixed(3);
+    if (!bookGeoCache[k]) bookGeoCache[k] = new THREE.BoxGeometry(bw, bh, bd);
+    return bookGeoCache[k];
+}
+function planeGeo(w, h) {
+    const k = w.toFixed(2) + 'x' + h.toFixed(2);
+    if (!planeGeoCache[k]) planeGeoCache[k] = new THREE.PlaneGeometry(w, h);
+    return planeGeoCache[k];
+}
+
+function initShared() {
+    M.floor = new THREE.MeshLambertMaterial({ map: floorTex });
+    M.wall = new THREE.MeshLambertMaterial({ map: wallTex });
+    M.ceil = new THREE.MeshLambertMaterial({ color: 0x4a3620 });
+    M.shelf = new THREE.MeshLambertMaterial({ color: 0x5a3a1a });
+    M.edge = new THREE.MeshLambertMaterial({ color: 0x2e1c0a });
+    M.step = new THREE.MeshLambertMaterial({ map: stairTex });
+    M.soffit = new THREE.MeshLambertMaterial({ color: 0x2b2016 });
+    M.woodTex = new THREE.MeshLambertMaterial({ map: stairTex });
+    // Floating-stair palette (STAIRS_eXAMPLE.png): pale oak treads + steel
+    // v37b: restored INITIAL_TEXTURE palette (near-black steel) but kept DoubleSide
+    // so the 2 bars stay visible; visibility fix is thickness + frustum + 5-level keep.
+    M.tread = new THREE.MeshLambertMaterial({ color: 0xd9b787 });
+    M.treadEdge = new THREE.MeshLambertMaterial({ color: 0xb89468 });
+    M.steel = new THREE.MeshLambertMaterial({ color: 0x1b1b21, side: THREE.DoubleSide });
+    M.cable = new THREE.MeshLambertMaterial({ color: 0x8f96a3, side: THREE.DoubleSide });
+    M.stone = new THREE.MeshLambertMaterial({ map: stoneTex });
+    M.stoneDark = new THREE.MeshLambertMaterial({ color: 0x8c7854 });
+    M.wood = new THREE.MeshLambertMaterial({ color: 0x5c3317 });
+    M.woodDark = new THREE.MeshLambertMaterial({ color: 0x3a1f0a });
+    M.cabWood = new THREE.MeshLambertMaterial({ color: 0x4a2410 });
+    M.brass = new THREE.MeshLambertMaterial({ color: 0xa87f2e });
+    M.carpet = new THREE.MeshLambertMaterial({ color: 0x7a1f1f });
+    M.carpetEdge = new THREE.MeshLambertMaterial({ color: 0xc9a227 });
+    M.flame = new THREE.MeshBasicMaterial({ color: 0xff9a2a });
+    M.skylight = new THREE.MeshBasicMaterial({ color: 0xfff3cf });
+    M.bracket = new THREE.MeshLambertMaterial({ color: 0x3a2a18 });
+    M.callBtn = new THREE.MeshBasicMaterial({ color: 0xffc44d });
+    // v41: rich elevator door — vertical walnut grain + 2 recessed panels + brass inlay
+    const doorTex = mkTex(256, (x, w, h) => {
+        x.fillStyle = '#6b4423'; x.fillRect(0, 0, w, h);
+        // vertical grain
+        for (let i = 0; i < 90; i++) {
+            const gx = Math.random() * w;
+            x.strokeStyle = `rgba(${40 + ~~(Math.random() * 20)},${25 + ~~(Math.random() * 15)},${12 + ~~(Math.random() * 10)},${0.18 + Math.random() * 0.22})`;
+            x.lineWidth = 1 + Math.random() * 1.2;
+            x.beginPath(); x.moveTo(gx, 0); x.bezierCurveTo(gx + (Math.random() - 0.5) * 10, h * 0.33, gx + (Math.random() - 0.5) * 10, h * 0.66, gx + (Math.random() - 0.5) * 6, h); x.stroke();
+        }
+        // outer brass frame
+        x.strokeStyle = '#c9a227'; x.lineWidth = 10; x.strokeRect(10, 10, w - 20, h - 20);
+        x.strokeStyle = '#8c6a1a'; x.lineWidth = 2; x.strokeRect(16, 16, w - 32, h - 32);
+        // two recessed panels
+        x.fillStyle = '#4e2f16'; x.fillRect(28, 28, w - 56, h * 0.42);
+        x.fillRect(28, h * 0.55, w - 56, h * 0.40);
+        x.strokeStyle = '#2b1a0c'; x.lineWidth = 4; x.strokeRect(28, 28, w - 56, h * 0.42); x.strokeRect(28, h * 0.55, w - 56, h * 0.40);
+        // panel bevel highlight
+        x.strokeStyle = 'rgba(255,220,170,0.18)'; x.lineWidth = 2; x.strokeRect(30, 30, w - 60, h * 0.42 - 4); x.strokeRect(30, h * 0.55 + 2, w - 60, h * 0.40 - 4);
+        // small brass handle hint on right edge of texture (will be on the inner edge of each leaf)
+        x.fillStyle = '#c9a227'; x.beginPath(); x.arc(w - 38, h * 0.5, 9, 0, Math.PI * 2); x.fill();
+        x.fillStyle = '#7a5a12'; x.beginPath(); x.arc(w - 38, h * 0.5, 6, 0, Math.PI * 2); x.fill();
+    });
+    doorTex.wrapS = doorTex.wrapT = THREE.RepeatWrapping;
+    M.doorWood = new THREE.MeshLambertMaterial({ map: doorTex });
+    M.doorWoodTex = M.doorWood;
+    M.banner = new THREE.MeshLambertMaterial({ map: bannerTex });
+    M.scroll = new THREE.MeshLambertMaterial({ color: 0xd9c9a8 });
+    M.mirror = new THREE.MeshLambertMaterial({ color: 0x9fb4b4 });
+    const signCanvas = document.createElement('canvas');
+    signCanvas.width = 512; signCanvas.height = 128;
+    const sx = signCanvas.getContext('2d');
+    sx.fillStyle = '#170c04'; sx.fillRect(0, 0, 512, 128);
+    sx.strokeStyle = '#c9a227'; sx.lineWidth = 6; sx.strokeRect(8, 8, 496, 112);
+    sx.fillStyle = '#ffd700'; sx.font = 'bold 52px Georgia'; sx.textAlign = 'center'; sx.textBaseline = 'middle';
+    sx.fillText('▼ ELEVATOR ▲', 256, 66);
+    const signTex = new THREE.CanvasTexture(signCanvas);
+    signTex.encoding = THREE.sRGBEncoding;
+    M.sign = new THREE.MeshBasicMaterial({ map: signTex });
+    bookMats = BOOK_COLORS.map(c => new THREE.MeshLambertMaterial({ color: c }));
+
+    G.back = new THREE.BoxGeometry(3.5, 4.6, 0.1);
+    G.side = new THREE.BoxGeometry(0.08, 4.6, 0.5);
+    G.plank = new THREE.BoxGeometry(3.4, 0.06, 0.45);
+    G.trim = new THREE.BoxGeometry(3.6, 0.1, 0.6);
+    G.colBase = new THREE.CylinderGeometry(0.3, 0.36, 0.35, 10);
+    G.colShaft = new THREE.CylinderGeometry(0.2, 0.26, CH - 0.7, 10);
+    G.colCap = new THREE.CylinderGeometry(0.32, 0.2, 0.28, 10);
+    G.pole = new THREE.CylinderGeometry(0.045, 0.07, 2.6, 8);
+    G.bowl = new THREE.CylinderGeometry(0.17, 0.09, 0.14, 10);
+    G.flame = new THREE.SphereGeometry(0.09, 8, 8);
+    G.finial = new THREE.SphereGeometry(0.09, 8, 8);
+    G.post = new THREE.CylinderGeometry(0.05, 0.05, 1.1, 6);
+    G.baseboard = new THREE.BoxGeometry(CW, 0.22, 0.07);
+    G.wainscot = new THREE.BoxGeometry(CW, 0.85, 0.06);
+    G.chairRail = new THREE.BoxGeometry(CW, 0.09, 0.1);
+    G.ring = new THREE.TorusGeometry(0.9, 0.06, 8, 24);
+    G.rod = new THREE.CylinderGeometry(0.03, 0.03, 1.0, 6);
+    G.beam = new THREE.BoxGeometry(CW, 0.14, 0.28);
+    G.beamCross = new THREE.BoxGeometry(0.28, 0.14, CW);
+    G.rugBase = new THREE.BoxGeometry(3.5, 0.04, 11.3);
+    G.rugTop = new THREE.BoxGeometry(3.2, 0.05, 11);
+    G.pedestal = new THREE.BoxGeometry(0.5, 1.1, 0.5);
+    G.bust = new THREE.SphereGeometry(0.22, 10, 10);
+    G.bustBase = new THREE.CylinderGeometry(0.14, 0.18, 0.18, 8);
+    G.scrollGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.7, 8);
+    G.bookHalf = new THREE.BoxGeometry(0.3, 0.025, 0.4);
+}
+
+// ================= Book text (deterministic per volume+level) =================
+function genHash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0; return Math.abs(h); }
+// v76: spine = filler words + 9-char address code (base32 of level/shelf/row/book).
+// Exact titles decode straight to their room — O(1), any distance. Deterministic
+// per (vol, level), ≤30 chars, frozen going forward. All arithmetic is exact
+// (powers of two only — no 32-bit ops, no float division).
+const TITLE_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const TITLE_CODE = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+function genTitle(vol, level) {
+    const sub = vol - level * 1000000;
+    const s = Math.floor(sub / 1000), r = Math.floor((sub - s * 1000) / 100), b = Math.floor((sub - s * 1000 - r * 100 - 3) / 7);
+    let seed = genHash('t' + vol + 'l' + level) || 1;
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) & 0x7fffffff; return seed / 0x7fffffff; };
+    let filler = '';
+    for (;;) {
+        const n = 2 + Math.floor(rnd() * 6);
+        let chunk = '';
+        for (let i = 0; i < n; i++) chunk += TITLE_CHARS[Math.floor(rnd() * TITLE_CHARS.length)];
+        const add = filler ? ' ' + chunk : chunk;
+        if (filler && filler.length + add.length > 20) break;
+        filler += add;
+        if (filler.length >= 8 && rnd() < 0.4) break;
+    }
+    let pack = (((level + 9000000000) * 8 + s) * 4 + r) * 16 + b;
+    let code = '';
+    for (let i = 0; i < 9; i++) { code = TITLE_CODE[pack % 32] + code; pack = Math.floor(pack / 32); }
+    return filler + ' ' + code;
+}
+// Exact spine → its address. Canonical re-encode check makes false positives
+// impossible: anything else falls through to the substring spiral.
+function decodeTitle(q) {
+    const nospace = q.trim().replace(/ /g, '');
+    if (nospace.length < 11) return null;
+    const code = nospace.slice(-9);
+    let pack = 0;
+    for (const ch of code) {
+        const d = TITLE_CODE.indexOf(ch);
+        if (d < 0) return null;
+        pack = pack * 32 + d;
+    }
+    // Unpack low strips first (all exact: small ints under 2^53, divisors exact).
+    const b = pack % 16;
+    const X = (pack - b) / 16;
+    const r = X % 4;
+    const Y = (X - r) / 4;
+    const s = Y % 8;
+    const L = (Y - s) / 8 - 9000000000;
+    if (b > 9 || r > 2 || s > 7 || L < -9000000000 || L > 9000000000) return null;
+    const vol = L * 1000000 + s * 1000 + r * 100 + b * 7 + 3;
+    if (genTitle(vol, L) !== q.trim()) return null;
+    return { level: L, vol };
+}
+// v61: book text was a seeded vocabulary (superseded by PROSE_* in v63) — kept for reference.
+const TEXT_VOCAB = ['the', 'of', 'and', 'a', 'to', 'in', 'is', 'that', 'it', 'was', 'he', 'for', 'on', 'are', 'as', 'with', 'his', 'they', 'at', 'be', 'this', 'have', 'from', 'or', 'one', 'had', 'by', 'word', 'but', 'not', 'what', 'all', 'were', 'we', 'when', 'your', 'can', 'said', 'there', 'use', 'an', 'each', 'which', 'she', 'do', 'how', 'their', 'if', 'will', 'up', 'other', 'about', 'out', 'many', 'then', 'them', 'these', 'so', 'some', 'her', 'would', 'make', 'like', 'him', 'into', 'time', 'has', 'look', 'two', 'more', 'write', 'go', 'see', 'number', 'no', 'way', 'could', 'people', 'my', 'than', 'first', 'water', 'been', 'call', 'who', 'its', 'now', 'find', 'long', 'down', 'day', 'did', 'get', 'come', 'made', 'may', 'part', 'knowledge', 'eternity', 'cosmos', 'nature', 'divine', 'heavens', 'truth', 'memory', 'wisdom', 'silence', 'language', 'light', 'shadow', 'fire', 'stone', 'river', 'dream', 'soul', 'king', 'queen', 'sage', 'scroll', 'tome', 'scholar', 'ink', 'papyrus', 'stars', 'moon', 'sun', 'sea', 'wind', 'sand', 'gold', 'iron', 'bronze', 'marble', 'vault', 'aisle', 'shelf', 'page', 'chapter', 'verse', 'song', 'tale', 'myth', 'legend', 'history', 'philosophy', 'astronomy', 'geometry', 'music', 'poetry', 'empire', 'city', 'harbor', 'lighthouse', 'pharos', 'ptolemy', 'euclid', 'hypatia', 'readers', 'scribes', 'candles', 'dust', 'echoes', 'cedar', 'olive', 'fig', 'nile', 'delta', 'ships', 'sails', 'ropes', 'anchors', 'maps', 'compass', 'horizon', 'dawn', 'dusk', 'midnight', 'noon', 'winter', 'summer', 'harvest', 'feast', 'council', 'decree', 'law', 'justice', 'mercy', 'wrath', 'grace', 'faith', 'doubt', 'reason', 'logic', 'rhetoric', 'grammar', 'dialogue', 'treatise', 'meditation', 'observation', 'reflection', 'study', 'elements', 'eternal', 'mortal', 'sacred', 'ancient', 'endless', 'golden', 'silent', 'forgotten', 'lost', 'hidden', 'open', 'closed', 'great', 'small', 'old', 'new', 'first', 'last', 'one', 'thousand', 'hundred', 'night', 'morning', 'evening', 'hour', 'moment', 'year', 'age', 'reign', 'crown', 'sword', 'shield', 'throne', 'palace', 'temple', 'altar', 'garden', 'court', 'market', 'street', 'wall', 'gate', 'tower', 'bridge', 'well', 'road', 'journey', 'voyage', 'angle', 'circle', 'line', 'point', 'proof', 'theorem', 'star', 'planet', 'comet', 'eclipse', 'tide', 'storm', 'calm', 'thunder', 'rain', 'snow', 'mist', 'smoke', 'ash', 'ember', 'flame', 'frost', 'dew', 'spring', 'autumn', 'seed', 'root', 'branch', 'leaf', 'flower', 'fruit', 'bread', 'wine', 'honey', 'salt', 'oil', 'clay', 'wax', 'papyrus', 'parchment', 'letter', 'name', 'oath', 'promise', 'secret', 'riddle', 'answer', 'question', 'path', 'door', 'key', 'chain', 'crown'];
+const VOCAB_SET = new Set(TEXT_VOCAB); // v62 gate (kept) — v63 prose below is drawn from PROSE_*; LANG_SET is the live language
+// v63: readable prose — sentence templates over word classes (seeded, deterministic
+// per book, ~2200 chars). Templates keep singular subjects with past / imperative /
+// subjunctive verbs, so every line is grammatical; proper names stay capitalized.
+const PROSE_NOUN = ['lighthouse', 'harbor', 'scroll', 'scribe', 'vault', 'aisle', 'scholar', 'captain', 'sailor', 'merchant', 'priest', 'poet', 'singer', 'mason', 'keeper', 'guard', 'student', 'master', 'servant', 'stranger', 'traveler', 'child', 'mother', 'father', 'king', 'queen', 'sage', 'prophet', 'ghost', 'shadow', 'flame', 'river', 'mountain', 'valley', 'desert', 'garden', 'forest', 'sea', 'storm', 'star', 'moon', 'sun', 'coin', 'key', 'door', 'chain', 'crown', 'sword', 'shield', 'bell', 'drum', 'lamp', 'candle', 'mirror', 'map', 'letter', 'oath', 'song', 'tale', 'dream', 'anchor', 'sail', 'rope', 'mast', 'hull', 'deck', 'compass', 'clock', 'tower', 'bridge', 'well', 'road', 'gate', 'wall', 'court', 'market', 'temple', 'altar', 'palace', 'throne', 'library', 'tomb', 'statue', 'mosaic', 'fresco', 'urn', 'vase', 'cup', 'bowl', 'blade', 'helm', 'cloak', 'ring', 'seal', 'tablet', 'stylus', 'codex', 'index', 'margin', 'page', 'chapter', 'verse', 'psalm', 'hymn', 'epic', 'ode', 'elegy', 'chorus', 'actor', 'mask', 'lyre', 'flute', 'wine', 'bread', 'honey', 'salt', 'oil', 'fig', 'olive', 'cedar'];
+const PROSE_PAST = ['stood', 'walked', 'sang', 'slept', 'dreamed', 'whispered', 'shouted', 'laughed', 'wept', 'sailed', 'marched', 'waited', 'watched', 'followed', 'entered', 'left', 'returned', 'remained', 'endured', 'vanished', 'appeared', 'lingered', 'gathered', 'scattered', 'knelt', 'prayed', 'blessed', 'cursed', 'swore', 'promised', 'remembered', 'forgot', 'forgave', 'answered', 'asked', 'counted', 'measured', 'weighed', 'copied', 'painted', 'carved', 'built', 'burned', 'buried', 'planted', 'harvested', 'poured', 'lifted', 'opened', 'closed', 'locked', 'broke', 'mended', 'swept', 'tended', 'lit', 'crossed', 'climbed', 'turned', 'fell', 'rose', 'bloomed', 'faded', 'echoed', 'sank', 'rang', 'blew', 'grew', 'knew', 'thought', 'sought', 'brought', 'taught', 'wrote', 'kept', 'held'];
+const PROSE_BASE = ['stand', 'keep', 'hold', 'guard', 'guide', 'sing', 'shine', 'sleep', 'wait', 'watch', 'wander', 'remember', 'carry', 'follow', 'lead', 'open', 'answer', 'echo', 'burn', 'fade', 'bloom', 'fall', 'rise', 'turn', 'return', 'remain', 'endure', 'whisper', 'speak', 'copy', 'read', 'seek', 'find', 'lift', 'mark', 'count', 'tend', 'light', 'bless', 'praise'];
+const PROSE_ADJ = ['silent', 'ancient', 'marble', 'golden', 'forgotten', 'lost', 'hidden', 'open', 'distant', 'hollow', 'empty', 'full', 'dark', 'bright', 'pale', 'red', 'black', 'white', 'blue', 'green', 'weary', 'eager', 'lonely', 'proud', 'humble', 'wise', 'foolish', 'young', 'old', 'great', 'small', 'vast', 'narrow', 'deep', 'shallow', 'high', 'low', 'long', 'short', 'swift', 'slow', 'soft', 'loud', 'sweet', 'bitter', 'cold', 'warm', 'dry', 'wet', 'rough', 'smooth', 'heavy', 'sacred', 'cursed', 'blessed', 'royal', 'noble', 'common', 'strange', 'familiar', 'true', 'false', 'first', 'last', 'outer', 'inner', 'upper', 'lower', 'eastern', 'western', 'northern', 'southern'];
+const PROSE_PREP = ['near', 'beyond', 'beneath', 'beside', 'behind', 'above', 'below', 'before', 'after', 'through', 'across', 'against', 'under', 'over', 'within', 'around', 'along', 'past', 'toward', 'upon', 'into', 'out of'];
+const PROSE_NAME = ['Alexandria', 'Hypatia', 'Euclid', 'Ptolemy', 'Eratosthenes', 'Archimedes', 'Callimachus', 'Zenodotus', 'Aristarchus', 'Herophilus', 'Pharos', 'Theon', 'Cleopatra', 'Caesar'];
+const PROSE_OPEN = ['and', 'but', 'so', 'for', 'yet', 'then', 'now', 'still'];
+// v64 appendix language: NEW words only — v63 lists above are never touched, so
+// every page keeps its old body bytes verbatim; new words live in the appended
+// page (genAppendix). Names included: anything nameable is findable.
+const NOUN2 = ['heart', 'home', 'baby', 'boy', 'girl', 'man', 'woman', 'friend', 'enemy', 'neighbor', 'sister', 'brother', 'son', 'daughter', 'husband', 'wife', 'widow', 'orphan', 'thief', 'judge', 'doctor', 'teacher', 'farmer', 'fisher', 'hunter', 'soldier', 'slave', 'baker', 'butcher', 'weaver', 'potter', 'smith', 'miner', 'shepherd', 'monk', 'nun', 'hermit', 'pilgrim', 'guest', 'host', 'ally', 'rival', 'witness', 'messenger', 'herald', 'lover', 'beloved', 'window', 'stair', 'corridor', 'chamber', 'cellar', 'attic', 'kitchen', 'cradle', 'coffin', 'portrait', 'parcel', 'gift', 'debt', 'promise', 'vow', 'feast', 'cloud', 'rainbow', 'frost', 'dew', 'snow', 'mist', 'smoke', 'ash', 'ember', 'pond', 'lake', 'stream', 'brook', 'waterfall', 'ocean', 'wave', 'foam', 'shell', 'pearl', 'coral', 'tree', 'bush', 'grass', 'flower', 'blossom', 'thorn', 'nest', 'egg', 'feather', 'wing', 'beak', 'paw', 'tail', 'horn', 'hoof', 'fang', 'antler', 'spider', 'web', 'bee', 'butterfly', 'moth', 'beetle', 'ant', 'fly', 'mosquito', 'worm', 'snake', 'lizard', 'frog', 'toad', 'fish', 'shark', 'whale', 'dolphin', 'seal', 'crab', 'lobster', 'oyster', 'clam', 'octopus', 'squid', 'turtle', 'horse', 'donkey', 'mule', 'ox', 'cow', 'bull', 'calf', 'sheep', 'goat', 'pig', 'dog', 'cat', 'wolf', 'fox', 'bear', 'lion', 'tiger', 'deer', 'rabbit', 'mouse', 'rat', 'bat', 'owl', 'eagle', 'hawk', 'sparrow', 'crow', 'dove', 'pigeon', 'swan', 'goose', 'duck', 'hen', 'rooster', 'peacock', 'nightingale', 'lark', 'head', 'face', 'eye', 'ear', 'nose', 'mouth', 'lip', 'tongue', 'tooth', 'cheek', 'chin', 'neck', 'shoulder', 'arm', 'hand', 'finger', 'thumb', 'chest', 'back', 'leg', 'foot', 'toe', 'knee', 'elbow', 'wrist', 'ankle', 'heel', 'hip', 'waist', 'throat', 'table', 'chair', 'bed', 'blanket', 'pillow', 'shirt', 'shoe', 'hat', 'coat', 'bag', 'box', 'basket', 'nail', 'hammer', 'axe', 'saw', 'knife', 'plate', 'bottle', 'jar', 'jug', 'barrel', 'chest', 'drawer', 'ladder', 'balcony', 'porch', 'yard', 'field', 'meadow', 'hill', 'cliff', 'cave', 'tunnel', 'spring', 'cosmos', 'knowledge', 'eternity', 'nature', 'heavens', 'heaven', 'elements', 'truth', 'time', 'memory', 'language', 'silence', 'study', 'treatise', 'wisdom', 'meditations', 'observations', 'reflections', 'poetry', 'music', 'dance', 'game', 'hunt', 'wedding', 'funeral', 'birth', 'death', 'life', 'voice', 'secret', 'lie', 'blessing', 'prayer', 'spell', 'charm', 'riddle', 'answer', 'question', 'love', 'hate', 'hope', 'fear', 'joy', 'sorrow', 'anger', 'honor', 'shame', 'courage', 'patience', 'envy', 'pity', 'grief', 'wonder', 'terror', 'bliss', 'despair', 'fortune', 'fate', 'doom', 'luck', 'chance', 'choice'];
+const VPAST2 = ['loved', 'liked', 'wanted', 'needed', 'hoped', 'feared', 'hated', 'kissed', 'hugged', 'touched', 'reached', 'called', 'named', 'chose', 'sent', 'gave', 'took', 'lost', 'won', 'paid', 'owed', 'sold', 'bought', 'spent', 'saved', 'wasted', 'fixed', 'cleaned', 'washed', 'cooked', 'baked', 'ate', 'drank', 'tasted', 'smelled', 'heard', 'felt', 'believed', 'understood', 'meant', 'decided', 'tried', 'failed', 'passed', 'missed', 'caught', 'threw', 'kicked', 'hit', 'hurt', 'cut', 'dug', 'sewed', 'saw'];
+const VBASE2 = ['love', 'like', 'want', 'need', 'hope', 'fear', 'hate', 'kiss', 'hug', 'touch', 'reach', 'call', 'name', 'choose', 'send', 'give', 'take', 'lose', 'win', 'pay', 'owe', 'sell', 'buy', 'spend', 'save', 'waste', 'fix', 'clean', 'wash', 'cook', 'bake', 'eat', 'drink', 'taste', 'smell', 'hear', 'feel', 'believe', 'understand', 'mean', 'decide', 'try', 'fail', 'pass', 'miss', 'catch', 'throw', 'kick', 'hit', 'hurt', 'cut', 'dig', 'sew'];
+const ADJ2 = ['beloved', 'dear', 'gentle', 'kind', 'cruel', 'brave', 'clever', 'pretty', 'beautiful', 'handsome', 'tall', 'fat', 'thin', 'strong', 'weak', 'healthy', 'sick', 'hungry', 'thirsty', 'tired', 'alive', 'dead', 'married', 'single', 'rich', 'poor', 'lucky', 'unlucky', 'happy', 'sad', 'angry', 'afraid', 'sorry', 'glad', 'jealous', 'curious', 'serious', 'funny', 'boring', 'interesting', 'important', 'urgent', 'ready', 'late', 'early', 'busy', 'free', 'quiet', 'noisy', 'clean', 'dirty', 'neat', 'messy', 'hot', 'cool', 'fresh', 'stale', 'sour', 'salty', 'spicy', 'divine'];
+const PREP2 = ['like'];
+const NAME2 = ['Jessica', 'Mary', 'John', 'James', 'Michael', 'David', 'Sarah', 'Emma', 'Olivia', 'Sophia', 'Ava', 'Isabella', 'Mia', 'Maria', 'Anna', 'Elizabeth', 'Susan', 'Karen', 'Nancy', 'Lisa', 'Betty', 'Helen', 'Sandra', 'Donna', 'Carol', 'Ruth', 'Sharon', 'Michelle', 'Laura', 'Kimberly', 'Deborah', 'Emily', 'Ashley', 'Brian', 'Kevin', 'Jason', 'Ryan', 'Jacob', 'Gary', 'Nicholas', 'Eric', 'Jonathan', 'Stephen', 'Larry', 'Justin', 'Scott', 'Brandon', 'Benjamin', 'Samuel', 'Gregory', 'Alexander', 'Patrick', 'Frank', 'Raymond', 'Jack', 'Dennis', 'Jerry', 'Tyler', 'Aaron', 'Jose', 'Adam', 'Nathan', 'Henry', 'Douglas', 'Peter', 'Kyle', 'Ethan', 'Walter', 'Noah', 'Jeremy', 'Christian', 'Keith', 'Roger', 'Gerald', 'Carl', 'Arthur', 'Terry', 'Lawrence', 'Sean', 'Willie', 'Jordan', 'Mason', 'Wayne', 'Alan', 'Ralph', 'Roy', 'Eugene', 'Russell', 'Gabriel', 'Logan', 'Billy', 'Bruce', 'Oliver', 'Lucas', 'Leo', 'Owen', 'Eli', 'Liam', 'William', 'Daniel', 'Matthew', 'Anthony', 'Mark', 'Paul', 'Steven', 'Andrew', 'Kenneth', 'Joshua', 'Christopher', 'George', 'Edward', 'Jennifer', 'Linda', 'Barbara', 'Patricia', 'Amanda', 'Melissa', 'Stephanie', 'Rebecca', 'Carolyn', 'Christina', 'Marie', 'Janet', 'Virginia', 'Frances', 'Joyce', 'Diane', 'Alice', 'Julie', 'Heather', 'Teresa', 'Doris', 'Gloria', 'Evelyn', 'Joan', 'Judith', 'Rose', 'Janice', 'Kelly', 'Nicole', 'Judy', 'Christine', 'Kathy', 'Martha', 'Lauren', 'Beverly', 'Denise', 'Tammy', 'Irene', 'Jane', 'Lori', 'Rachel', 'Marilyn', 'Andrea', 'Hannah', 'Jacqueline', 'Madison', 'Sara'];
+const LANG_SET = new Set([...PROSE_NOUN, ...PROSE_PAST, ...PROSE_BASE, ...PROSE_ADJ, ...PROSE_PREP, ...PROSE_NAME.map(w => w.toLowerCase()), ...PROSE_OPEN, ...NOUN2, ...VPAST2, ...VBASE2, ...ADJ2, ...PREP2, ...NAME2.map(w => w.toLowerCase())]);
+// v65/v67/v70: raw characters + spaces (Babel-authentic) — one seeded LCG stream:
+// mostly lowercase, AJFJ-style capitals (~1/8) and digits (~1/14) mixed in, plus
+// spaces and , . — ~2200 chars shown in full. Fixed per address forever.
+const SOUP_CHARS = 'abcdefghijklmnopqrstuvwxyz ,.';
+const SOUP_CAPS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const SOUP_DIGITS = '0123456789';
+function genText(vol, level) {
+    let seed = genHash('v' + vol + 'l' + level) || 1;
+    let s = '';
+    for (let i = 0; i < 2200; i++) {
+        seed = (seed * 1664525 + 1013904223) & 0x7fffffff;
+        if (seed % 8 === 0) { seed = (seed * 1664525 + 1013904223) & 0x7fffffff; s += SOUP_CAPS[seed % SOUP_CAPS.length]; }
+        else if (seed % 13 === 0) { seed = (seed * 1664525 + 1013904223) & 0x7fffffff; s += SOUP_DIGITS[seed % SOUP_DIGITS.length]; }
+        else s += SOUP_CHARS[seed % SOUP_CHARS.length];
+    }
+    const out = [];
+    for (let i = 0; i < s.length; i += 64) out.push(s.slice(i, i + 64));
+    return out.join('<br>');
+}
+// v69: pure arithmetic — the old >> shifts went 32-bit and returned undefined
+// walls/shelves past floor ±2147 and on every negative floor. Exact anywhere.
+function getLoc(vol) {
+    const walls = ['North Wall', 'East Wall', 'South Wall', 'West Wall'];
+    const shelves = ['Alpha', 'Beta', 'Gamma'];
+    return {
+        wall: walls[((Math.floor(vol / 64) % 4) + 4) % 4],
+        shelf: shelves[((Math.floor(vol / 16) % 3) + 3) % 3],
+        pos: ((vol % 10) + 10) % 10 + 1
+    };
+}
+
+// ================= Elevator music (synthesized, no files needed) =================
+const Music = {
+    ctx: null, master: null, timer: null, on: false, muted: false,
+    ensure() {
+        if (!this.ctx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return false;
+            this.ctx = new AC();
+            this.master = this.ctx.createGain();
+            this.master.gain.value = 0;
+            const lp = this.ctx.createBiquadFilter();
+            lp.type = 'lowpass'; lp.frequency.value = 1200;
+            this.master.connect(lp); lp.connect(this.ctx.destination);
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        return true;
+    },
+    tone(freq, delay, dur, vol, type) {
+        const t0 = this.ctx.currentTime + delay;
+        const o = this.ctx.createOscillator(), gn = this.ctx.createGain();
+        o.type = type || 'sine'; o.frequency.value = freq;
+        gn.gain.setValueAtTime(0.0001, t0);
+        gn.gain.linearRampToValueAtTime(vol, t0 + 0.6);
+        gn.gain.linearRampToValueAtTime(0.0001, t0 + dur);
+        o.connect(gn); gn.connect(this.master);
+        o.start(t0); o.stop(t0 + dur + 0.1);
+    },
+    start() {
+        if (this.on || this.muted || !this.ensure()) return;
+        this.on = true;
+        this.master.gain.cancelScheduledValues(this.ctx.currentTime);
+        this.master.gain.linearRampToValueAtTime(0.16, this.ctx.currentTime + 1.2);
+        const prog = [[261.63, 329.63, 392.0], [220.0, 261.63, 329.63], [174.61, 220.0, 261.63], [196.0, 246.94, 293.66]];
+        const penta = [523.25, 587.33, 659.25, 783.99, 880.0];
+        let i = 0;
+        const loop = () => {
+            if (!this.on) return;
+            const ch = prog[i % prog.length]; i++;
+            ch.forEach(f => this.tone(f, 0, 2.6, 0.05));
+            if (Math.random() < 0.7) this.tone(penta[(Math.random() * penta.length) | 0], 1.1, 1.6, 0.035, 'triangle');
+            this.timer = setTimeout(loop, 2500);
+        };
+        loop();
+    },
+    ding() {
+        if (!this.ensure() || this.muted) return;
+        this.tone(880, 0, 1.8, 0.12);
+        this.tone(1318.5, 0.15, 1.8, 0.08);
+    },
+    stop(after) {
+        if (!this.on) return;
+        setTimeout(() => {
+            this.on = false;
+            clearTimeout(this.timer);
+            if (this.ctx) this.master.gain.linearRampToValueAtTime(0.0, this.ctx.currentTime + 1.0);
+        }, (after || 0) * 1000);
+    },
+    toggle() {
+        this.muted = !this.muted;
+        if (this.muted) {
+            this.on = false;
+            clearTimeout(this.timer);
+            if (this.ctx) this.master.gain.value = 0;
+        }
+        document.getElementById('music-btn').textContent = this.muted ? '♪ Music: off' : '♪ Music: on';
+    }
+};
+
+// ================= Small builders =================
+const boxGeoCache = {};
+// Box with UVs scaled to world size so wood grain has uniform density on every face
+function woodBox(w, h, d, s) {
+    const g = new THREE.BoxGeometry(w, h, d);
+    const sc = s || 1.5;
+    const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
+    const uv = g.attributes.uv;
+    for (let f = 0; f < 6; f++) {
+        for (let v = 0; v < 4; v++) {
+            const i = f * 4 + v;
+            uv.setXY(i, uv.getX(i) * dims[f][0] / sc, uv.getY(i) * dims[f][1] / sc);
+        }
+    }
+    uv.needsUpdate = true;
+    return g;
+}
+function boxGeo(w, h, d) {
+    const k = w.toFixed(2) + 'x' + h.toFixed(2) + 'x' + d.toFixed(2);
+    if (!boxGeoCache[k]) boxGeoCache[k] = new THREE.BoxGeometry(w, h, d);
+    return boxGeoCache[k];
+}
+// Solid 15cm slabs: top face + dark masonry fascia on the cut edges (no paper-thin planes)
+// v34: ceiling sits *under* the floor above (stacked 30cm), not 1mm above it — fixes
+// the yellow floor vanishing / z-fighting when you crest the stairs.
+function slab(g, w, d, x, y, z, faceUp) {
+    const top = faceUp ? M.floor : M.ceil;
+    const mats = faceUp
+        ? [M.edge, M.edge, top, M.edge, M.edge, M.edge]
+        : [M.edge, M.edge, M.edge, top, M.edge, M.edge];
+    const m = new THREE.Mesh(boxGeo(w, 0.15, d), mats);
+    // floor top at y, ceiling top at y-0.15 (touches floor bottom) — stacked, no overlap
+    m.position.set(x, faceUp ? y - 0.075 : y - 0.225, z);
+    g.add(m);
+}
+function buildSlabs(g, y, faceUp, holes) {
+    const xs = [-HALF];
+    holes.forEach(h => { xs.push(h.x0, h.x1); });
+    xs.push(HALF);
+    xs.sort((a, b) => a - b);
+    for (let i = 0; i < xs.length - 1; i++) {
+        const xa = xs[i], xb = xs[i + 1];
+        if (xb - xa < 0.01) continue;
+        const ov = holes.filter(h => h.x0 < xb - 1e-4 && h.x1 > xa + 1e-4);
+        if (!ov.length) {
+            slab(g, xb - xa, CW, (xa + xb) / 2, y, 0, faceUp);
+            continue;
+        }
+        const zs = [-HALF];
+        ov.forEach(h => { zs.push(h.z0, h.z1); });
+        zs.push(HALF);
+        zs.sort((a, b) => a - b);
+        for (let j = 0; j < zs.length - 1; j++) {
+            const za = zs[j], zb = zs[j + 1];
+            if (zb - za < 0.01) continue;
+            const zm = (za + zb) / 2;
+            const inHole = ov.some(h => zm > h.z0 && zm < h.z1);
+            if (!inHole) slab(g, xb - xa, zb - za, (xa + xb) / 2, y, zm, faceUp);
+        }
+    }
+}
+function makeDoorPair(parent, x, y, zc, thick, mat, slide) {
+    // v51: leaves are 0.9 wide (doorway between jambs is 1.70 — the old 0.8 leaves
+    // left 5cm peek slots each side). Closed they cover -0.90..+0.90, overlapping
+    // 50mm behind each jamb face with an air gap in x: stepped seal, never flush,
+    // never intersecting.
+    // v53: leaves run 0.025..4.485 — heads pass 185mm ABOVE the header bottom
+    // (4.30) with 50-60mm air in x, so no top slot exists at all (the old heads
+    // stopped 5mm under the header and you could peek over them at close range).
+    // Bottoms stay 5mm over the sill. Slide travels with the pair; 0.72 parks
+    // OPEN leaves 40mm clear of the side walls (1.44m clear walk-through).
+    const geo = new THREE.BoxGeometry(thick, 4.46, 0.9);
+    // v47: NEVER mutate the shared door material (was causing global polygonOffset flicker).
+    // Air gaps (not polygonOffset) separate doors from walls — clone so renderOrder stays local.
+    const dm = mat.clone();
+    dm.polygonOffset = false;
+    const l = new THREE.Mesh(geo, dm), r = new THREE.Mesh(geo, dm);
+    l.position.set(x, y, zc - 0.45); r.position.set(x, y, zc + 0.45);
+    // v41: brass handles on the inner edges — 5mm air gap so handle backs never touch door faces.
+    // v51: 90mm off the seam edge, so OPEN handles stop 20mm clear of the pilasters.
+    const hGeo = new THREE.BoxGeometry(0.04, 0.45, 0.04);
+    const hm = M.brass.clone();
+    const hl = new THREE.Mesh(hGeo, hm); hl.position.set(thick / 2 + 0.025, 0, 0.36); l.add(hl);
+    const hr = new THREE.Mesh(hGeo, hm); hr.position.set(thick / 2 + 0.025, 0, -0.36); r.add(hr);
+    parent.add(l); parent.add(r);
+    return { l, r, zc, slide: (slide === undefined ? 0.38 : slide) };
+}
+function setDoorPair(p, t) {
+    p.l.position.z = p.zc - 0.45 - t * p.slide;
+    p.r.position.z = p.zc + 0.45 + t * p.slide;
+}
+function makePlate(level) {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 64;
+    const x = c.getContext('2d');
+    x.fillStyle = '#170c04'; x.fillRect(0, 0, 256, 64);
+    x.strokeStyle = '#c9a227'; x.lineWidth = 4; x.strokeRect(4, 4, 248, 56);
+    const label = 'FLOOR ' + level;
+    x.fillStyle = '#ffd700'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    // v74: shrink-to-fit — billions-long labels used to run past the brass border.
+    let size = 36;
+    x.font = 'bold ' + size + 'px Georgia';
+    while (size > 8 && x.measureText(label).width > 256 - 28) {
+        size -= 2;
+        x.font = 'bold ' + size + 'px Georgia';
+    }
+    x.fillText(label, 128, 34);
+    const pt = new THREE.CanvasTexture(c);
+    pt.encoding = THREE.sRGBEncoding;
+    return pt;
+}
+
+// ================= Room building (identical every level, books differ) =================
+function buildLevel(level) {
+    if (levels[level]) return;
+    const g = new THREE.Group();
+    g.position.set(0, level * CH + YSHIFT, 0);
+    g.frustumCulled = false;
+    levels[level] = g;
+    booksByLevel[level] = [];
+
+    const holes = [HOLE_S, ELEV];
+    buildSlabs(g, 0, true, holes);
+    buildSlabs(g, CH, false, holes);
+
+    // Walls
+    const wallN = new THREE.Mesh(planeGeo(CW, CH), M.wall); wallN.position.set(0, CH / 2, -HALF); g.add(wallN);
+    const wallS = new THREE.Mesh(planeGeo(CW, CH), M.wall); wallS.position.set(0, CH / 2, HALF); wallS.rotation.y = Math.PI; g.add(wallS);
+    const wallW = new THREE.Mesh(planeGeo(CW, CH), M.wall); wallW.position.set(-HALF, CH / 2, 0); wallW.rotation.y = Math.PI / 2; g.add(wallW);
+    const wallE = new THREE.Mesh(planeGeo(CW, CH), M.wall); wallE.position.set(HALF, CH / 2, 0); wallE.rotation.y = -Math.PI / 2; g.add(wallE);
+
+    // Baseboards + wainscot + chair rail
+    [[0, -HALF + 0.05, 0], [0, HALF - 0.05, Math.PI], [-HALF + 0.05, 0, Math.PI / 2], [HALF - 0.05, 0, -Math.PI / 2]].forEach(([x, z, ry]) => {
+        const b = new THREE.Mesh(G.baseboard, M.edge); b.position.set(x, 0.11, z); b.rotation.y = ry; g.add(b);
+        const wp = new THREE.Mesh(G.wainscot, M.wood); wp.position.set(x * 0.995, 0.62, z * 0.995); wp.rotation.y = ry; g.add(wp);
+        const cr = new THREE.Mesh(G.chairRail, M.edge); cr.position.set(x * 0.993, 1.08, z * 0.993); cr.rotation.y = ry; g.add(cr);
+    });
+
+    // Banners between the shelves
+    [[-2.3, -HALF + 0.09, 0], [2.3, -HALF + 0.09, 0], [-2.3, HALF - 0.09, Math.PI], [2.3, HALF - 0.09, Math.PI]].forEach(([x, z, ry]) => {
+        const bn = new THREE.Mesh(planeGeo(1.0, 2.4), M.banner);
+        bn.position.set(x, 3.1, z); bn.rotation.y = ry; g.add(bn);
+    });
+
+    // Carpet runner (solid rug boxes — flat planes z-fight with the floor)
+    const ce = new THREE.Mesh(G.rugBase, M.carpetEdge);
+    ce.position.set(-1, 0.02, 0); g.add(ce);
+    const ca = new THREE.Mesh(G.rugTop, M.carpet);
+    ca.position.set(-1, 0.025, 0); g.add(ca);
+
+    // ---- Bookshelves (west shelf at z=-4.6 omitted for the elevator) ----
+    // v32: shelf that was tight against the elevator's right side (north-wall west slot
+    // at x=-4.6) removed and shifted east so the doors have breathing room.
+    const shelfDefs = [];
+    // north wall: was [-4.6,0,4.6] -> left slot moved from -4.6 to -3.0 (more to the right/east)
+    // and centre nudged to 0.9 to keep 3.5m gaps
+    [-3.0, 0.9, 4.6].forEach(o => {
+        shelfDefs.push({ x: o, z: -(HALF - 0.55), ry: 0 });
+    });
+    // south wall unchanged
+    [-4.6, 0, 4.6].forEach(o => {
+        shelfDefs.push({ x: o, z: (HALF - 0.55), ry: Math.PI });
+    });
+    [0, 4.6].forEach(o => shelfDefs.push({ x: -(HALF - 0.55), z: o, ry: Math.PI / 2 }));
+    // (no east shelves — the grand stair hall runs along the east wall instead)
+
+    let shelfIdx = 0;
+    shelfDefs.forEach(s => {
+        const shelf = new THREE.Group();
+        shelf.position.set(s.x, 0, s.z);
+        shelf.rotation.y = s.ry;
+        g.add(shelf);
+
+        const back = new THREE.Mesh(G.back, M.shelf); back.position.set(0, 2.45, -0.22); shelf.add(back);
+        [-1.71, 1.71].forEach(xo => {
+            const side = new THREE.Mesh(G.side, M.shelf); side.position.set(xo, 2.45, 0); shelf.add(side);
+        });
+        const trim = new THREE.Mesh(G.trim, M.edge); trim.position.set(0, 4.78, 0); shelf.add(trim);
+        const kick = new THREE.Mesh(G.trim, M.edge); kick.position.set(0, 0.12, 0); shelf.add(kick);
+
+        for (let r = 0; r < 3; r++) {
+            const sy = 0.75 + r * 1.25;
+            const plank = new THREE.Mesh(G.plank, M.edge); plank.position.set(0, sy, 0); shelf.add(plank);
+            for (let b = 0; b < 10; b++) {
+                const vol = level * 1000000 + shelfIdx * 1000 + r * 100 + b * 7 + 3;
+                const bw = 0.16 + (vol % 4) * 0.03;
+                const bh = 0.62 + (vol % 4) * 0.07;
+                const bd = 0.30 + (vol % 3) * 0.03;
+                const book = new THREE.Mesh(bookGeo(bw, bh, bd), bookMats[((vol % bookMats.length) + bookMats.length) % bookMats.length]);
+                book.position.set((b - 4.5) * 0.31, sy + 0.03 + bh / 2 - 0.005, 0.03);
+                if ((vol % 11) === 0) book.rotation.z = 0.06;
+                book.userData = { vol, level, shelfIdx };
+                shelf.add(book);
+                booksByLevel[level].push(book);
+            }
+        }
+        shelfIdx++;
+    });
+
+    // ---- Columns (v49: the one at -2.8,-4.6 stood right in front of the
+    // elevator doors blocking the view/path, so it is gone) ----
+    [[-4.6, 4.6], [3.6, -4.6], [3.6, 4.6]].forEach(([px, pz]) => {
+        const b = new THREE.Mesh(G.colBase, M.stoneDark); b.position.set(px, 0.175, pz); g.add(b);
+        const c = new THREE.Mesh(G.colShaft, M.stone); c.position.set(px, (CH - 0.7) / 2 + 0.35, pz); g.add(c);
+        const cp = new THREE.Mesh(G.colCap, M.stoneDark); cp.position.set(px, CH - 0.14, pz); g.add(cp);
+    });
+
+    // ---- Busts on pedestals ----
+    [[1.8, 2.5], [1.8, -2.5]].forEach(([px, pz]) => {
+        const ped = new THREE.Mesh(G.pedestal, M.stoneDark); ped.position.set(px, 0.55, pz); g.add(ped);
+        const nb = new THREE.Mesh(G.bustBase, M.stone); nb.position.set(px, 1.19, pz); g.add(nb);
+        const bu = new THREE.Mesh(G.bust, M.stone); bu.position.set(px, 1.5, pz); g.add(bu);
+    });
+
+    // ---- Reading table + stools + scrolls + open book ----
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 0.1, 20), M.wood);
+    top.position.set(-1, 1.0, 0); g.add(top);
+    [[-0.4, -0.4], [-0.4, 0.4], [0.4, -0.4], [0.4, 0.4]].forEach(([ox, oz]) => {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.0, 8), M.woodDark);
+        leg.position.set(-1 + ox, 0.5, oz); g.add(leg);
+    });
+    [[-1, 2.2], [-1, -2.2]].forEach(([sx, sz]) => {
+        const st = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.45, 12), M.wood);
+        st.position.set(sx, 0.225, sz); g.add(st);
+    });
+    [[-0.25], [0.25]].forEach(([oz]) => {
+        const sc = new THREE.Mesh(G.scrollGeo, M.scroll);
+        sc.rotation.z = Math.PI / 2; sc.position.set(-1.3, 1.11, oz); g.add(sc);
+    });
+    [-1, 1].forEach(s => {
+        const half = new THREE.Mesh(G.bookHalf, M.scroll);
+        half.position.set(-0.6 + s * 0.14, 1.08, 0.55); half.rotation.z = s * -0.22; g.add(half);
+    });
+
+    // ---- Chandelier (unlit brass ring) ----
+    const ring = new THREE.Mesh(G.ring, M.brass);
+    ring.rotation.x = Math.PI / 2; ring.position.set(-1, 4.55, 0); g.add(ring);
+    const rod = new THREE.Mesh(G.rod, M.bracket);
+    rod.position.set(-1, 5.3, 0); rod.scale.y = 1.4; g.add(rod);
+    const finial = new THREE.Mesh(G.finial, M.brass);
+    finial.position.set(-1, 4.42, 0); g.add(finial);
+
+    // ---- Ceiling coffers ----
+    [-4.5, 0, 4.5].forEach(z => {
+        const bm = new THREE.Mesh(G.beam, M.woodDark); bm.position.set(0, CH - 0.16, z); g.add(bm);
+    });
+    [-4.5, 0, 4.5].forEach(x => {
+        const bm = new THREE.Mesh(G.beamCross, M.woodDark); bm.position.set(x, CH - 0.16, 0); g.add(bm);
+    });
+
+    // ---- Standing torches + 2 real lights per level ----
+    [[-6.9, -6.9], [6.9, -6.9], [-6.9, 6.9], [6.9, 6.9]].forEach(([tx, tz], i) => {
+        const pole = new THREE.Mesh(G.pole, M.bracket); pole.position.set(tx, 1.3, tz); g.add(pole);
+        const bowl = new THREE.Mesh(G.bowl, M.brass); bowl.position.set(tx, 2.66, tz); g.add(bowl);
+        const fl = new THREE.Mesh(G.flame, M.flame); fl.position.set(tx, 2.82, tz); g.add(fl);
+        flames.push({ mesh: fl, phase: level * 2.3 + i * 1.3, level });
+    });
+    const pl1 = new THREE.PointLight(0xffb45e, 0.22, 10, 2); pl1.position.set(-3, 4.4, 0); g.add(pl1);
+    const pl2 = new THREE.PointLight(0xffb45e, 0.22, 10, 2); pl2.position.set(4, 4.4, 0); g.add(pl2);
+
+    // ---- Dust motes ----
+    const dn = 100;
+    const dp = new Float32Array(dn * 3);
+    for (let i = 0; i < dn; i++) {
+        dp[i * 3] = (Math.random() - 0.5) * 14;
+        dp[i * 3 + 1] = 0.3 + Math.random() * 5;
+        dp[i * 3 + 2] = (Math.random() - 0.5) * 14;
+    }
+    const dg = new THREE.BufferGeometry();
+    dg.setAttribute('position', new THREE.BufferAttribute(dp, 3));
+    const dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: 0xffe6a8, size: 0.035, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false }));
+    g.add(dust);
+    dusties.push({ pts: dust, level });
+
+    // ---- FLOATING OPEN-RISER STAIRS (v30, after STAIRS_eXAMPLE.png) ----
+    // Pale-oak treads float with open risers; tops land exactly on the old ramp line
+    // so walking/collision math is unchanged. Black-steel spine below, thin black
+    // posts + steel handrail + cables on BOTH open sides. No solid mass = light passes.
+    const TREAD_T = 0.14, TREAD_D = SRUN + 0.08;
+    const treadGeo = boxGeo(FX1 - FX0, TREAD_T, TREAD_D);
+    // top tread inset 2cm below floor + 4cm south so it doesn't go co-planar/overlap the landing
+    const topTreadGeo = boxGeo(FX1 - FX0, TREAD_T, TREAD_D - 0.06);
+    for (let i = 0; i < SN; i++) {
+        const top = (i + 1) * SRISE;
+        const isTop = i === SN - 1;
+        const zC = SZ0 + i * SRUN + SRUN / 2 - (isTop ? 0.04 : 0);
+        const geo = isTop ? topTreadGeo : treadGeo;
+        const yOff = isTop ? 0.015 : 0;
+        const tread = new THREE.Mesh(geo, M.tread);
+        tread.position.set(FCX, top - TREAD_T / 2 - yOff, zC);
+        tread.frustumCulled = false;
+        g.add(tread);
+    }
+    // Single black-steel spine under the centre (the dark support in the example photo)
+    const runLen = SN * SRUN;
+    const spineLen = Math.hypot(runLen, CH) + 0.7;
+    const spine = new THREE.Mesh(boxGeo(0.3, 0.35, spineLen), M.steel);
+    spine.position.set(FCX, CH / 2 - 0.34, (SZ0 + SZ1) / 2 + 0.05);
+    spine.rotation.x = -Math.atan2(CH, runLen);
+    spine.frustumCulled = false;
+    g.add(spine);
+    // Foot plate + shoe at the bottom, anchor bracket into the upper slab
+    const foot = new THREE.Mesh(boxGeo(0.6, 0.12, 0.9), M.steel);
+    foot.position.set(FCX, 0.06, SZ0 + 0.25); foot.frustumCulled = false; g.add(foot);
+    const shoe = new THREE.Mesh(boxGeo(0.3, 0.5, 0.3), M.steel);
+    shoe.position.set(FCX, 0.3, SZ0 + 0.25); shoe.frustumCulled = false; g.add(shoe);
+    const anchor = new THREE.Mesh(boxGeo(0.4, 0.3, 0.5), M.steel);
+    anchor.position.set(FCX, CH - 0.2, SZ1 - 0.1); anchor.frustumCulled = false; g.add(anchor);
+    // Modern guardrails both sides: 1 black post per tread + sloped steel handrail + 2 cables
+    // v35b: thickened so the 2 handrail bars stay visible when cresting the stairs
+    const railXs = [FX0 + 0.1, FX1 - 0.1];
+    const postGeo = boxGeo(0.08, 1.0, 0.08);
+    for (let i = 0; i < SN; i++) {
+        const top = (i + 1) * SRISE;
+        const pZ = SZ0 + i * SRUN + SRUN / 2 + 0.18;
+        railXs.forEach(px => {
+            const post = new THREE.Mesh(postGeo, M.steel);
+            post.position.set(px, top + 0.5, pZ);
+            post.frustumCulled = false;
+            g.add(post);
+        });
+    }
+    const rZA = SZ0 + 0.15, rZB = SZ1 + 0.2;
+    const rYA = ((rZA - SZ0) / runLen) * CH + 1.02;
+    const rYB = ((rZB - SZ0) / runLen) * CH + 1.02;
+    const rLen = Math.hypot(rZB - rZA, rYB - rYA);
+    const rAng = Math.atan2(rYB - rYA, rZB - rZA);
+    railXs.forEach(px => {
+        const rail = new THREE.Mesh(boxGeo(0.22, 0.10, rLen), M.steel);
+        rail.position.set(px, (rYA + rYB) / 2, (rZA + rZB) / 2);
+        rail.rotation.x = -rAng;
+        rail.frustumCulled = false;
+        g.add(rail);
+        [0.38, 0.68].forEach(h => {
+            const cYA = ((rZA - SZ0) / runLen) * CH + h;
+            const cYB = ((rZB - SZ0) / runLen) * CH + h;
+            const cable = new THREE.Mesh(boxGeo(0.034, 0.034, rLen), M.cable);
+            cable.position.set(px, (cYA + cYB) / 2, (rZA + rZB) / 2);
+            cable.rotation.x = -rAng;
+            cable.frustumCulled = false;
+            g.add(cable);
+        });
+    });
+    // Landing guard on the UPPER floor: two side rails standing on solid floor
+    // just outside the tight well (FX0..FX1). Both north and south ends are LEFT
+    // OPEN so you can step onto the flight from either end — no bar blocking the entrance.
+    const landY = CH;
+    const landPostGeo = boxGeo(0.08, 1.0, 0.08);
+    {
+        const lz0 = SZ0 - 0.28, lz1 = SZ1 + 0.28;
+        [FX0 - 0.12, FX1 + 0.12].forEach(px => {
+            for (let k = 0; k <= 4; k++) {
+                const lz = lz0 + (lz1 - lz0) * (k / 4);
+                const lp = new THREE.Mesh(landPostGeo, M.steel);
+                lp.position.set(px, landY + 0.5, lz);
+                lp.frustumCulled = false;
+                g.add(lp);
+            }
+            const lRail = new THREE.Mesh(boxGeo(0.22, 0.10, lz1 - lz0), M.steel);
+            lRail.position.set(px, landY + 1.02, (lz0 + lz1) / 2);
+            lRail.frustumCulled = false;
+            g.add(lRail);
+        });
+    }
+
+    // ---- Elevator — v48 FULL REBUILD (same place, same hole), v50 sealed ----
+    // The old bay was 10+ thin boxes layered inside each other (foundation + floating
+    // pink cap + brass cladding + offset planes). Every layer added a flickering seam —
+    // including the little brown sliver under the pink. This rebuild is solid parts only:
+    // 3 outer walls + 2 pilasters + 1 header + 1 solid sill + 1 button + 5 collar plates.
+    // No cap-on-base, no cladding-on-masonry, no shared-material polygonOffset. Abutting
+    // faces always step >=10mm (never coplanar); bearings overlap solidly.
+    const ex0 = ELEV.x0, ex1 = ELEV.x1, ez0 = ELEV.z0, ez1 = ELEV.z1;
+    const doorZ0 = ELEV.cz - CAB.doorW / 2, doorZ1 = ELEV.cz + CAB.doorW / 2; // -5.40 / -3.80
+    const shaftMat = M.cabWood;
+    // Walls run 200mm under the floor and stop 20mm under the slab above (tops bury
+    // inside the upper slab — never a flush face with a slab top).
+    const WB = -0.20, WT = CH - 0.02, WH = WT - WB, WY = (WT + WB) / 2;
+    // Rear + side walls: 200mm thick, straddling the slab cut with 90-110mm bearing
+    // (never a flush face-to-face joint with the slab edge).
+    const backW = new THREE.Mesh(new THREE.BoxGeometry(0.20, WH, (ez1 - ez0) + 0.44), shaftMat);
+    backW.position.set(ex0 - 0.01, WY, ELEV.cz); g.add(backW); // x -7.36..-7.16
+    const sideX0 = ex0 - 0.20, sideX1 = ex1 + 0.20, sideXC = (sideX0 + sideX1) / 2;
+    [[ez0 - 0.01, 0], [ez1 + 0.01, 0]].forEach(([z]) => {
+        const sw = new THREE.Mesh(new THREE.BoxGeometry(sideX1 - sideX0, WH, 0.20), shaftMat);
+        sw.position.set(sideXC, WY, z); g.add(sw);
+    });
+    // Front pilasters: widened to MEET the side walls (unified facade, no slots).
+    // North pilaster runs -6.36..-5.45, south -3.75..-2.84 — each buries 100mm into
+    // its side wall with all faces offset >=50mm (a stepped joint, never flush).
+    // Doorway reveals stay 50mm clear of the closed leaves.
+    [[(ez0 - 0.01 + doorZ0 - 0.05) / 2, doorZ0 - 0.05 - (ez0 - 0.01)],
+     [(doorZ1 + 0.05 + ez1 + 0.01) / 2, (ez1 + 0.01) - (doorZ1 + 0.05)]].forEach(([z, w]) => {
+        const pil = new THREE.Mesh(new THREE.BoxGeometry(0.30, WH, w), shaftMat);
+        pil.position.set(ex1, WY, z); g.add(pil); // x -4.90..-4.60
+    });
+    // Header: spans wall to wall (-6.35..-2.85), ends buried in the side walls,
+    // 15mm proud of the pilaster faces, bottom 5mm above the tall door heads.
+    const header = new THREE.Mesh(new THREE.BoxGeometry(0.26, 1.68, ez1 - ez0), shaftMat);
+    header.position.set(ex1 + 0.035, 5.14, ELEV.cz); g.add(header); // x -4.845..-4.585, y 4.30..5.98
+    // v50 fire collar: seals the dark 20-40cm slots between cabin floor and slab hole
+    // (that is what you saw when you pressed your face to the walls and looked down
+    // past the cabin). 5 dark-masonry plates, tops stepped 10-30mm under the floors,
+    // every joint buried 30mm+ with faces offset >=10mm — steps, never flush faces.
+    const collarMat = M.edge;
+    [[-6.0, -6.14, 2.56, 0.48, -0.06, 0.10], [-6.0, -3.06, 2.56, 0.48, -0.06, 0.10]].forEach(([cx, cz, w, d, cy, h]) => {
+        const c = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), collarMat);
+        c.position.set(cx, cy, cz); g.add(c); // N/S plates, y -0.11..-0.01
+    });
+    [[-7.14, -4.6, 0.28, 2.70], [-4.86, -5.88, 0.28, 0.94], [-4.86, -3.32, 0.28, 0.94]].forEach(([cx, cz, w, d]) => {
+        const c = new THREE.Mesh(new THREE.BoxGeometry(w, 0.10, d), collarMat);
+        c.position.set(cx, -0.08, cz); g.add(c); // W/E plates 20mm stepped under N/S, y -0.13..-0.03
+    });
+    // ONE solid sill — pink through and through, no brown underlay to peek out.
+    // Bears 90mm under the cabin floor + 30mm under the landing slab; top steps 20mm
+    // proud of the floors; ends stop 10mm short of the pilasters.
+    const sill = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.16, 1.68), M.carpet);
+    sill.position.set(ex1 - 0.14, -0.06, ELEV.cz); g.add(sill); // x -5.06..-4.72, y -0.14..+0.02
+    // Call button: single box floating 8mm off the pilaster face (never embedded).
+    const btn = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.12), M.callBtn.clone());
+    btn.position.set(ex1 + 0.188, 1.6, doorZ1 + 0.35); g.add(btn);
+    // Signs: two planes sharing one 12mm standoff off the header face, stacked with a
+    // 160mm gap so they never overlap each other.
+    const sign = new THREE.Mesh(planeGeo(1.9, 0.48), M.sign);
+    sign.position.set(ex1 + 0.177, 5.20, ELEV.cz); sign.rotation.y = Math.PI / 2; g.add(sign);
+    const plateTex = makePlate(level);
+    const plateMat = new THREE.MeshBasicMaterial({ map: plateTex });
+    const plate = new THREE.Mesh(planeGeo(1.4, 0.36), plateMat);
+    plate.position.set(ex1 + 0.177, 4.62, ELEV.cz); plate.rotation.y = Math.PI / 2; g.add(plate);
+    g.userData.plateTex = plateTex;
+    g.userData.plateMat = plate.material;
+    // Shaft leaves: 0.06 thick, centered in the 70mm slot between cabin pillars
+    // (-4.97) and shaft pilasters (-4.90) — 5mm air each side, so the old 50mm
+    // corner interpenetration with the cabin pillars is gone. Full 0.72 travel:
+    // OPEN leaves stop 40mm short of the side walls; bottoms 5mm over the sill,
+    // heads run past the header bottom with 60mm air (no top slot).
+    const pair = makeDoorPair(g, ex1 - 0.185, 2.255, ELEV.cz, 0.06, M.doorWood, 0.72);
+    setDoorPair(pair, (level === elev.cabinLevel && elev.doorT > 0) ? elev.doorT : 0);
+    doorsByLevel[level] = pair;
+
+    scene.add(g);
+}
+
+function unloadLevel(level) {
+    const g = levels[level];
+    if (!g) return;
+    if (bookHighlight && bookHighlight.level === level) clearHighlight(); // drop glow before its shelf unloads
+    scene.remove(g);
+    if (g.userData.plateTex) g.userData.plateTex.dispose();
+    if (g.userData.plateMat) g.userData.plateMat.dispose();
+    delete levels[level];
+    delete booksByLevel[level];
+    delete doorsByLevel[level];
+    for (let i = flames.length - 1; i >= 0; i--) if (flames[i].level === level) flames.splice(i, 1);
+    for (let i = dusties.length - 1; i >= 0; i--) if (dusties[i].level === level) dusties.splice(i, 1);
+}
+
+function buildCabin() {
+    // v48 FULL REBUILD — same footprint (2.0 x 2.6), corners joined as stepped
+    // L-joints (10mm reveals, 90mm overlaps): no flush faces, no see-through slots.
+    // Walls dive 60mm into the floor and 60mm into the roof. v50: side walls stop
+    // 170mm short of the front pillars so the FULL-travel leaves park in the
+    // resulting pockets like real pocket doors.
+    cabinG = new THREE.Group();
+    const W2 = CAB.w / 2, D2 = CAB.d / 2;
+    // v50: floor/roof stop 20mm inside the wall outer faces (the old flush edges
+    // were full-length coplanar strips with the wall sides).
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(2.02, 0.12, 2.62), M.woodDark);
+    floor.position.y = -0.06; cabinG.add(floor);
+    const rug = new THREE.Mesh(new THREE.BoxGeometry(CAB.w - 0.4, 0.03, CAB.d - 0.4), M.carpet);
+    rug.position.y = 0.02; cabinG.add(rug); // 5mm float over the floor
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(2.02, 0.12, 2.62), M.cabWood);
+    roof.position.y = CAB.h + 0.06; cabinG.add(roof);
+    const lamp = new THREE.Mesh(planeGeo(1.2, 1.2), M.skylight);
+    lamp.rotation.x = Math.PI / 2; lamp.position.y = CAB.h - 0.015; cabinG.add(lamp);
+    // Rear wall: stops 10mm short of the side walls.
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.10, 4.62, 2.44), M.cabWood);
+    back.position.set(-W2 - 0.03 + 0.05, 2.25, 0); cabinG.add(back); // x -1.03..-0.93
+    // Side walls end 170mm short of the front pillars — the FULL-open leaves
+    // (0.72 travel, 1.44m clear opening) park in the resulting pockets with
+    // 50-60mm air all round and disappear behind the wall ends exactly like
+    // real pocket doors.
+    [-1, 1].forEach(s => {
+        const side = new THREE.Mesh(new THREE.BoxGeometry(1.78, 4.62, 0.10), M.cabWood);
+        side.position.set(-0.13, 2.25, s * (D2 - 0.02)); cabinG.add(side); // x -1.02..+0.76
+        const pil = new THREE.Mesh(new THREE.BoxGeometry(0.10, 4.62, 0.47), M.cabWood);
+        pil.position.set(W2 - 0.02, 2.25, s * (D2 - 0.215)); cabinG.add(pil); // x .93..1.03, z .85..1.32
+    });
+    // Front header: 5mm reveals to the pillars, 5mm over the tall door heads.
+    const fhead = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.26, 1.69), M.cabWood);
+    fhead.position.set(W2 - 0.02, 4.43, 0); cabinG.add(fhead);
+    // Trim: handrail + button panel, every mount floats off its wall.
+    [-0.6, 0, 0.6].forEach(z => {
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 3.0, 0.12), M.doorWood);
+        strip.position.set(-W2 + 0.125, 1.9, z); cabinG.add(strip);
+    });
+    const grab = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 2.0, 8), M.brass);
+    grab.rotation.x = Math.PI / 2; grab.position.set(-W2 + 0.22, 1.15, 0); cabinG.add(grab);
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, 0.08), M.bracket);
+    panel.position.set(0.5, 1.6, D2 - 0.13); cabinG.add(panel);
+    [-0.12, 0, 0.12].forEach((dy, i) => {
+        const dot = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.07, 0.07), i === 1 ? M.callBtn : M.flame);
+        dot.position.set(0.5, 1.6 + dy, D2 - 0.21); cabinG.add(dot);
+    });
+    // Cabin leaves: full 0.72 travel into the wall pockets (1.44m clear opening),
+    // 60mm off the wall ends, 50mm off the pillars; bottoms 5mm over the sill,
+    // heads run past the header bottom with 50mm air (no top slot).
+    cabinDoors = makeDoorPair(cabinG, W2 - 0.15, 2.255, 0, 0.06, M.doorWood, 0.72);
+    setDoorPair(cabinDoors, 1);
+    cabinG.position.set(ELEV.cx, elev.cabinY, ELEV.cz);
+    scene.add(cabinG);
+}
+
+// ================= Collision helpers =================
+function stairLift(z) {
+    if (z < SZ0 || z > SZT) return -1;
+    return Math.min(1, (z - SZ0) / (SZ1 - SZ0));
+}
+function inStairX(x) { return Math.abs(x - FCX) < 1.3; }
+function inHoleRect(h, x, z) { return x > h.x0 && x < h.x1 && z > h.z0 && z < h.z1; }
+function inCabinXZ(x, z) {
+    // v42: expanded to shaft edge so the 20cm door threshold between cabin and landing has ground
+    // (was 1.05 → left a gap where you fell through)
+    return Math.abs(x - ELEV.cx) < 1.30 && Math.abs(z - ELEV.cz) < 1.45;
+}
+function inShaft(x, z) { return inHoleRect(ELEV, x, z); }
+// v52: solid-volume test for the rebuilt elevator (same place).
+// Shaft outer shell + cabin walls + the dark side/rear voids all count as solid;
+// only the cabin interior is free, plus the doorway corridor when the doors are open.
+// v51: R=0.25 player radius baked in — the old zero-radius point test let you press
+// your eye exactly onto a wall face, and the 0.1 near plane then clipped inside and
+// showed the wall interior / shaft voids. Eyes now stop 25cm off every face.
+// v52: per-storey — the old version only ran at the CABIN's height, so on every
+// other floor (stairs reach them; their elevator doors are always shut) you could
+// walk your eye straight into the pilasters. Now the footprint is tested against
+// whichever storey your feet are in; only the cabin's floor can ever read "open".
+function elevSolidAt(x, z) {
+    const R = 0.25;
+    const OX0 = -7.46, OX1 = -4.55, OZ0 = -6.46, OZ1 = -2.74;
+    if (x < OX0 - R || x > OX1 + R || z < OZ0 - R || z > OZ1 + R) return false;
+    const feetY = playerY - EYE;
+    let inStorey = false, openHere = false;
+    for (const k of Object.keys(levels)) {
+        const L = parseInt(k, 10);
+        const y0 = L * CH + YSHIFT;
+        if (feetY < y0 - 1.0 || feetY > y0 + CH) continue;
+        inStorey = true;
+        if (L === elev.cabinLevel && elev.doorT >= 0.5) openHere = true;
+    }
+    if (!inStorey) return false; // no storey here → no wall meshes here → nothing to hit
+    if (openHere) {
+        const lx = x - ELEV.cx, lz = z - ELEV.cz; // cabin-local coords
+        // Cabin interior: margins on the walled sides; east side joins the corridor
+        // (no margin) when open.
+        const inInterior = (x > -6.93 + R && x < -5.20 && z > -5.83 + R && z < -3.37 - R);
+        // Doorway corridor (mouth extended R past the facade so the radius lip never
+        // blocks the walk-through).
+        const inCorridor = (x > -5.20 && x < OX1 + R && z > -5.40 + R && z < -3.80 - R);
+        if (inInterior || inCorridor) {
+            // v54: parked OPEN leaves (x 0.82..0.88, z ±0.72..1.62 local) — the old
+            // interior bound stopped eyes 0.02 off their faces, straight inside the
+            // 0.1 near plane. Eye kept R off all leaf faces (walk line z=0 unaffected).
+            if (lx > 0.82 - R && lx < 0.88 + R && Math.abs(lz) > 0.72 - R && Math.abs(lz) < 1.62 + R) return true;
+            // v54: button panel + dots on the north cabin wall (dots reach z=1.055
+            // local; old bound stopped eyes 0.075 off). Eye kept R off them.
+            if (lx > 0.10 && lx < 0.90 && lz > 0.805) return true;
+            return false;
+        }
+        return true;
+    }
+    // Doors shut here: whole footprint solid, except a shallow vestibule so you can
+    // still press your nose to the shut leaves (0.25 off) to read the plates.
+    if (x > -4.655 && x < OX1 + R && z > -5.40 + R && z < -3.80 - R) return false;
+    return true;
+}
+// v56: stair handrails/posts/cables + landing guards are HARD objects (same 0.25
+// eye radius as the elevator). The old flight clamp stopped eyes 0.07 off the
+// handrail faces (inside the 0.1 near plane), and the landing guards had no
+// collision at all — you could stand inside the bars. Height-aware per level:
+// rails only block where steel actually is (tread-top line .. +1.12), so you can
+// still walk under a high flight or step onto the flight past the rail ends.
+function stairBarSolid(x, z, feetY) {
+    const R = 0.25, HR = 0.11 + R; // handrail half-width + radius (posts/cables share these centerlines)
+    const eyeY = feetY + 1.7;
+    for (const k of Object.keys(levels)) {
+        const L = parseInt(k, 10);
+        const y0 = L * CH + YSHIFT;
+        // flight rails of this level (handrail z -3.85..5.20, posts/cables inside it)
+        if (z > SZ0 + 0.15 - R && z < SZ1 + 0.2 + R) {
+            const ry = y0 + ((z - SZ0) / (SN * SRUN)) * CH; // tread-top line under this z
+            if (feetY < ry + 1.12 && eyeY > ry) {
+                if (Math.abs(x - (FX0 + 0.1)) < HR) return true;
+                if (Math.abs(x - (FX1 - 0.1)) < HR) return true;
+            }
+        }
+        // landing guard of this level (stands on floor y0+CH, open at both ends —
+        // no end caps, so entries stay walkable; only the two side bands block)
+        const gy = y0 + CH;
+        if (feetY < gy + 1.12 && eyeY > gy && z > SZ0 - 0.28 - R && z < SZ1 + 0.28 + R) {
+            if (Math.abs(x - (FX0 - 0.12)) < HR) return true;
+            if (Math.abs(x - (FX1 + 0.12)) < HR) return true;
+        }
+    }
+    return false;
+}
+
+function groundHeight(x, z, feetY) {
+    const cands = [];
+    const trueFeet = feetY - YSHIFT;
+    const lo = Math.floor(trueFeet / CH) - 1;
+    for (let L = lo; L <= lo + 2; L++) {
+        if (!levels[L]) continue;
+        const h0 = L * CH + YSHIFT;
+        if (!inHoleRect(HOLE_S, x, z) && !inHoleRect(ELEV, x, z)) cands.push(h0);
+        if (!inHoleRect(ELEV, x, z) && inStairX(x)) {
+            const t = stairLift(z);
+            if (t >= 0) cands.push(h0 + t * CH);
+        }
+    }
+    if (inCabinXZ(x, z)) cands.push(elev.cabinY);
+    // v48 solid sill steps 20mm proud — stand on it instead of clipping 20mm through it
+    if (x > -5.06 && x < -4.72 && z > -5.44 && z < -3.76 && Math.abs(feetY - elev.cabinY) < 1.0)
+        cands.push(elev.cabinY + 0.02);
+    let best = -Infinity;
+    for (const h of cands) if (h <= feetY + 0.55 && h > best) best = h;
+    return best === -Infinity ? null : best;
+}
+
+// ================= Book viewer =================
+function openBook(book) {
+    bookOpen = true;
+    document.exitPointerLock();
+    const d = book.userData;
+    const loc = getLoc(d.vol);
+    document.getElementById('book-title').textContent = bookTitle(d.vol, d.level);
+    document.getElementById('book-cover').style.background =
+        'linear-gradient(135deg,#' + book.material.color.getHexString() + ' 0%,#1a0606 135%)';
+    // v60: light up the searched words inside the page (if this is that book).
+    const find = (pendingFind && pendingFind.vol === d.vol) ? pendingFind : null;
+    const marked = find ? highlightWords(bookText(d.vol, d.level), find.words, !!find.literal) : null;
+    document.getElementById('book-location').innerHTML =
+        `Floor ${d.level.toLocaleString()}<br>Volume ${d.vol.toLocaleString()}<br>${loc.wall}<br>Shelf ${loc.shelf}<br>Position ${loc.pos}` +
+        (find ? `<br>${marked.count} hit${marked.count === 1 ? '' : 's'} for “${escHtml(find.words.join(' '))}”` : '');
+    document.getElementById('book-content').innerHTML = marked ? marked.html : bookText(d.vol, d.level);
+    document.getElementById('book-viewer').style.display = 'flex';
+    document.getElementById('prompt').style.display = 'none';
+    if (find && marked.count > 0) {
+        const m = document.querySelector('#book-content mark.found');
+        if (m) m.scrollIntoView({ block: 'center' });
+    }
+}
+function closeBook() { bookOpen = false; document.getElementById('book-viewer').style.display = 'none'; }
+
+// ================= Elevator UI + travel =================
+function toast(msg, ms) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(toast._t);
+    if (ms) toast._t = setTimeout(() => el.style.display = 'none', ms);
+}
+function setFade(on) {
+    const f = document.getElementById('fade');
+    f.style.transition = 'opacity 0.55s';
+    f.style.opacity = on ? '1' : '0';
+}
+function openElevUI() {
+    uiOpen = true;
+    document.exitPointerLock();
+    document.getElementById('elev-where').textContent = 'Cabin at Floor ' + elev.cabinLevel.toLocaleString() + ' — any floor from -9000000000 to 9000000000';
+    document.getElementById('elev-status').textContent = '';
+    document.getElementById('elev-input').value = String(elev.cabinLevel + 1);
+    document.getElementById('elev-ui').style.display = 'flex';
+    setTimeout(() => document.getElementById('elev-input').select(), 50);
+    const fnb = document.getElementById('find-next');
+    if (fnb) fnb.style.display = huntChain ? '' : 'none';
+    paintGoButton();
+}
+function closeElevUI() {
+    uiOpen = false;
+    document.getElementById('elev-ui').style.display = 'none';
+}
+// v65/v66/v70: sample-until-match ("turn pages until one is good") — spiral over REAL
+// addresses, so every hit is a genuine room (fixed shelves, nothing ever added).
+// Chunked so the menu stays alive: live progress, Cancel/ESC aborts. Short strings
+// land in a floor or two; v66: no attempt cap — it keeps turning until it finds
+// one, however long that takes (only the library's own edges can end it).
+// v70: best-so-far — every room is also scored by how much of the query it holds;
+// the button offers the best one seen, so an impossible hunt still ends somewhere
+// good ("use that one"). Rooms hold letters, digits, spaces and , . only.
+const SEARCH_FLOORS_PER_TICK = 6;
+let bookSearch = null; // {words, parts, total, literal, d, rooms, best, center, onHit, onMiss}
+function abortContentSearch() { bookSearch = null; titleSearch = null; paintGoButton(); }
+// v70: split a literal string into scorable parts (words, or 3-char chunks past 6).
+function chunkString(s) {
+    const out = [];
+    for (const t of s.split(/\s+/)) {
+        if (!t) continue;
+        if (t.length <= 6) out.push(t);
+        else for (let i = 0; i < t.length; i += 3) out.push(t.slice(i, i + 3));
+    }
+    return out;
+}
+// v70: count parts present, bailing early once best can't be beaten.
+function countParts(text, parts, bestScore) {
+    let n = 0;
+    for (let i = 0; i < parts.length; i++) {
+        if (text.indexOf(parts[i]) !== -1) n++;
+        if (n + (parts.length - 1 - i) <= bestScore) break;
+    }
+    return n;
+}
+// v70: the go-button doubles as "take best" while a hunt has something good.
+function paintGoButton() {
+    const el = document.getElementById('elev-go');
+    if (!el) return;
+    const st = bookSearch;
+    if (st && st.best && st.best.score > 0) {
+        el.textContent = 'Take best (' + st.best.score + '/' + st.total + ') — F' + st.best.level.toLocaleString();
+    } else el.textContent = 'Take me there';
+}
+function startContentSearch(words, onHit, onMiss, literal, seen) {
+    // v68 literal: exact string as typed — case and spaces intact, no splitting.
+    const keys = literal ? words.slice() : words.map(w => w.toLowerCase());
+    // v70: scoring parts — the words themselves, or 3-char chunks for a spaceless
+    // literal (cap 16 so scoring stays cheap).
+    const parts = (literal ? chunkString(keys.join(' ')) : keys.slice()).slice(0, 16);
+    const me0 = Math.max(-9000000000, Math.min(9000000000, Math.round((playerY - EYE - YSHIFT) / CH)));
+    // Grandfathered shelves first — known addresses anywhere, no sampling needed.
+    let best = null, bestD = Infinity;
+    for (const k of Object.keys(customBooks)) {
+        const cb = customBooks[k];
+        const kv = parseInt(k, 10);
+        if (seen && seen.has(kv)) continue; // v78: already visited on this chain
+        const raw = bookText(kv, cb.level);
+        const text = literal ? raw : raw.toLowerCase();
+        if (keys.every(w => text.indexOf(w) !== -1)) {
+            const d = Math.abs(cb.level - me0);
+            if (d < bestD) { bestD = d; best = { level: cb.level, vol: kv }; }
+        }
+    }
+    if (best) { onHit(best); return; }
+    const re = /^[A-Za-z0-9 ,.]+$/;
+    if (!keys.every(w => re.test(w))) {
+        document.getElementById('elev-status').textContent = 'Rooms hold only letters, digits, spaces and , . — that string can be in no book.';
+        return;
+    }
+    bookSearch = { words: keys, parts: parts, total: parts.length, best: null, literal: !!literal, seen: seen || null, d: 0, rooms: 0, onHit, onMiss, center: me0 };
+    document.getElementById('elev-status').textContent = 'Turning pages…';
+    paintGoButton();
+    setTimeout(contentSearchTick, 0);
+}
+function contentSearchTick() {
+    const st = bookSearch;
+    if (!st) return;
+    for (let f = 0; f < SEARCH_FLOORS_PER_TICK; f++, st.d++) {
+        const up = st.center + st.d, dn = st.center - st.d;
+        if (up > 9000000000 && dn < -9000000000) {
+            // every floor in existence turned and nothing held it
+            if (bookSearch !== st) return;
+            bookSearch = null;
+            st.onMiss(st);
+            return;
+        }
+        const cand = st.d === 0 ? [st.center] : [up, dn];
+        for (const L of cand) {
+            if (L < -9000000000 || L > 9000000000) continue;
+            for (let s = 0; s < 8; s++) {
+                for (let r = 0; r < 3; r++) {
+                    for (let b = 0; b < 10; b++) {
+                        const vol = L * 1000000 + s * 1000 + r * 100 + b * 7 + 3;
+                        if (st.seen && st.seen.has(vol)) continue;
+                        st.rooms++;
+                        const raw = bookText(vol, L);
+                        const text = st.literal ? raw : raw.toLowerCase();
+                        let ok = true;
+                        for (const w of st.words) { if (text.indexOf(w) === -1) { ok = false; break; } }
+                        if (ok) {
+                            if (bookSearch !== st) return;
+                            bookSearch = null;
+                            st.onHit({ level: L, vol });
+                            return;
+                        }
+                        // v70: no full hit — bank it if it beats the best so far.
+                        if (!st.best || st.best.score < st.total) {
+                            const sc = countParts(text, st.parts, st.best ? st.best.score : 0);
+                            if (!st.best || sc > st.best.score) st.best = { score: sc, level: L, vol };
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (bookSearch !== st) return;
+    document.getElementById('elev-status').textContent =
+        'Turning pages… ±' + st.d + ' floors (' + st.rooms.toLocaleString() + ' books)' +
+        ((st.best && st.best.score > 0) ? ' — best: Floor ' + st.best.level.toLocaleString() + ' (' + st.best.score + '/' + st.total + ')' : '');
+    paintGoButton();
+    setTimeout(contentSearchTick, 0);
+}
+// v70/v71: title-contains sampling — same spiral-over-real-addresses honesty, but titles
+// cost ~1µs to check (vs ~50µs a page), so big chunks. v71: uncapped like content —
+// it turns until it finds, however long that takes (Cancel/ESC stops it). Titles hold
+// 30 letters at most — longer queries are refused up front. Grandfathered shelves
+// (custom titles) checked first, case-insensitively throughout.
+const TITLE_FLOORS_PER_TICK = 60;
+let titleSearch = null; // {q, qt, whole, d, rooms, center, onHit, onMiss}
+function startTitleSearch(sub, onHit, onMiss, wholeWord, seen) {
+    const q = sub.toLowerCase();
+    const me0 = Math.max(-9000000000, Math.min(9000000000, Math.round((playerY - EYE - YSHIFT) / CH)));
+    // v75 whole-word: every query token must equal a whole spine token.
+    const qt = wholeWord ? q.split(/\s+/).filter(w => w.length >= 2) : null;
+    let best = null, bestD = Infinity;
+    for (const k of Object.keys(customBooks)) {
+        const cb = customBooks[k];
+        const kv = parseInt(k, 10);
+        if (seen && seen.has(kv)) continue; // v78: already visited on this chain
+        const ct = cb.title.toLowerCase();
+        const cmatch = wholeWord
+            ? qt.every(w => ct.split(' ').indexOf(w) !== -1)
+            : ct.indexOf(q) !== -1;
+        if (cmatch) {
+            const d = Math.abs(cb.level - me0);
+            if (d < bestD) { bestD = d; best = { level: cb.level, vol: kv }; }
+        }
+    }
+    if (best) { onHit(best); return; }
+    titleSearch = { q, qt, whole: !!wholeWord, seen: seen || null, d: 0, rooms: 0, onHit, onMiss, center: me0 };
+    document.getElementById('elev-status').textContent = 'Turning titles…';
+    setTimeout(titleSearchTick, 0);
+}
+function titleSearchTick() {
+    const st = titleSearch;
+    if (!st) return;
+    for (let f = 0; f < TITLE_FLOORS_PER_TICK; f++, st.d++) {
+        const up = st.center + st.d, dn = st.center - st.d;
+        if (up > 9000000000 && dn < -9000000000) {
+            if (titleSearch !== st) return;
+            titleSearch = null;
+            st.onMiss(st);
+            return;
+        }
+        const cand = st.d === 0 ? [st.center] : [up, dn];
+        for (const L of cand) {
+            if (L < -9000000000 || L > 9000000000) continue;
+            for (let s = 0; s < 8; s++) {
+                for (let r = 0; r < 3; r++) {
+                    for (let b = 0; b < 10; b++) {
+                        const vol = L * 1000000 + s * 1000 + r * 100 + b * 7 + 3;
+                        if (st.seen && st.seen.has(vol)) continue;
+                        st.rooms++;
+                        const t = genTitle(vol, L).toLowerCase();
+                        let ok;
+                        if (st.whole) {
+                            ok = true;
+                            const toks = t.split(' ');
+                            for (const w of st.qt) { if (toks.indexOf(w) === -1) { ok = false; break; } }
+                        } else ok = t.indexOf(st.q) !== -1;
+                        if (ok) {
+                            if (titleSearch !== st) return;
+                            titleSearch = null;
+                            st.onHit({ level: L, vol });
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (titleSearch !== st) return;
+    document.getElementById('elev-status').textContent =
+        'Turning titles… ±' + st.d + ' floors (' + st.rooms.toLocaleString() + ' titles)';
+    setTimeout(titleSearchTick, 0);
+}
+// v81: pointer lock requested from an async arrival can outlive the click
+// gesture window (slow hunts) and reject — never fail mute, explain instead.
+function relock() {
+    try {
+        const p = renderer.domElement.requestPointerLock();
+        if (p && typeof p.catch === 'function') p.catch(() => {
+            toast('Click to look around', 3000);
+        });
+    } catch (err) { /* older browsers: click-to-lock covers it */ }
+}
+// Shared arrival for every book trip: highlight now if the room is here, else ride.
+function goToBook(dest, note, fw, lit) {
+    // v79: marks show only words truly in the room — a titled arrival carrying
+    // unrelated find-words used to display a paradoxical "0 hits" on open.
+    // (Hit-verified words pass through untouched; absentees simply don't light.)
+    let marks = null;
+    if (fw && fw.length) {
+        const raw = bookText(dest.vol, dest.level);
+        const hay = lit ? raw : raw.toLowerCase();
+        const present = fw.filter(w => hay.indexOf(lit ? w : w.toLowerCase()) !== -1);
+        if (present.length) marks = { vol: dest.vol, words: present, literal: !!lit };
+    }
+    pendingFind = marks;
+    if (huntChain) huntChain.seen.add(dest.vol); // v78: arrivals join the chain
+    if (dest.level === elev.cabinLevel && levels[dest.level]) {
+        closeElevUI();
+        relock();
+        applyHighlight(dest.level, dest.vol, note);
+        return;
+    }
+    pendingHighlight = { level: dest.level, vol: dest.vol, note };
+    closeElevUI();
+    relock();
+    startTravel(dest.level);
+}
+// v78: hunt chain — every async arrival records its spec so "Find next" can keep
+// hunting past it. Seen vols carry over, so rooms never repeat.
+let huntChain = null; // {engine:'content'|'title', query, marks, literal, whole, seen:Set}
+// v78: volume number → its room, O(1). vol = L*1000000 + s*1000 + r*100 + b*7+3,
+// inverted with exact small-int ops + canonical re-encode check (same discipline
+// as title codes — a miss is provably absent, never spiralled for).
+function decodeVolume(v) {
+    if (!isFinite(v) || Math.floor(v) !== v) return null;
+    const sub = ((v % 1000000) + 1000000) % 1000000;
+    const s = Math.floor(sub / 1000);
+    const r = Math.floor((sub - s * 1000) / 100);
+    const b = Math.floor((sub - s * 1000 - r * 100 - 3) / 7);
+    if (s > 7 || r > 2 || b < 0 || b > 9) return null;
+    const L = Math.round((v - sub) / 1000000);
+    if (L < -9000000000 || L > 9000000000) return null;
+    if (L * 1000000 + s * 1000 + r * 100 + b * 7 + 3 !== v) return null;
+    return { level: L, vol: v };
+}
+// v78: keep hunting past the last room — fresh spiral, visited vols skipped.
+function findNext() {
+    const ch = huntChain;
+    if (!ch) {
+        // v80: never die silent — a stale visible button reports itself and hides
+        // (chain dies on any fresh Take-me-there that doesn't start a hunt).
+        document.getElementById('elev-status').textContent = 'No hunt to continue — start one with Take me there.';
+        const fnb = document.getElementById('find-next');
+        if (fnb) fnb.style.display = 'none';
+        return;
+    }
+    abortContentSearch();
+    if (ch.engine === 'content') {
+        startContentSearch(ch.query, (hit) => {
+            ch.seen.add(hit.vol);
+            goToBook(hit, 'Next room — ', ch.marks, ch.literal);
+        }, (st) => {
+            document.getElementById('elev-status').textContent = 'Turned ' + st.rooms.toLocaleString() + ' books — no further room. Try fewer/shorter words.';
+        }, ch.literal, ch.seen);
+    } else {
+        startTitleSearch(ch.query, (hit) => {
+            ch.seen.add(hit.vol);
+            goToBook(hit, 'Next room — ', ch.marks);
+        }, (st) => {
+            document.getElementById('elev-status').textContent = 'Turned ' + st.rooms.toLocaleString() + ' titles — no further title.';
+        }, ch.whole, ch.seen);
+    }
+}
+function elevGo() {
+    // v70: a hunt is running and it already holds something good — Take-best uses it.
+    if (bookSearch && bookSearch.best && bookSearch.best.score > 0) {
+        const st = bookSearch;
+        abortContentSearch();
+        clearHighlight();
+        pendingHighlight = null;
+        pendingFind = null;
+        const raw = bookText(st.best.vol, st.best.level);
+        const hay = st.literal ? raw : raw.toLowerCase();
+        const hits = st.parts.filter(p => hay.indexOf(p) !== -1);
+        document.getElementById('book-input').value = '';
+        document.getElementById('book-find').value = '';
+        document.getElementById('book-exact').value = '';
+        document.getElementById('book-intitle').value = '';
+        document.getElementById('book-titleword').value = '';
+        document.getElementById('book-volume').value = '';
+        goToBook({ level: st.best.level, vol: st.best.vol },
+            'Best room found: ' + hits.length + '/' + st.total + ' parts truly occur here. ', hits, st.literal);
+        return;
+    }
+    abortContentSearch();
+    clearHighlight();
+    pendingHighlight = null;
+    pendingFind = null;
+    huntChain = null; // fresh intent — async arrivals below start a new chain
+    // v68/v75/v76/v78 order: exact string first, then title (old shelves, decoded spine,
+    // substring), then find-words, then title-contains, then title-whole-word, then
+    // volume number, then floor number. Fixed shelves throughout — misses stay misses.
+    const q = document.getElementById('book-input').value.trim();
+    const fw = document.getElementById('book-find').value.trim().split(/\s+/).filter(w => w.length >= 2).slice(0, 6);
+    const exRaw = document.getElementById('book-exact').value;
+    if (exRaw) {
+        // v68: exact string — spaces, case and everything, exactly as typed.
+        huntChain = { engine: 'content', query: [exRaw], marks: [exRaw], literal: true, whole: false, seen: new Set() };
+        startContentSearch([exRaw],
+            (hit) => {
+                document.getElementById('book-exact').value = '';
+                goToBook(hit, null, [exRaw], true);
+            },
+            (st) => {
+                document.getElementById('elev-status').textContent = 'Turned ' + st.rooms.toLocaleString() + ' books — that exact string shares no book. Try fewer/shorter characters.';
+            });
+        return;
+    }
+    if (q) {
+        const ql = q.toLowerCase();
+        const me = Math.round((playerY - EYE - YSHIFT) / CH);
+        let best = null, bestD = Infinity;
+        for (const k of Object.keys(customBooks)) {
+            const cb = customBooks[k];
+            if (cb.title.toLowerCase() === ql) {
+                const d = Math.abs(cb.level - me);
+                if (d < bestD) { bestD = d; best = { level: cb.level, vol: parseInt(k, 10) }; }
+            }
+        }
+        // Title: old shelves exact, decoded spine, then turn spines until one holds
+        // it — v77: no instant lecture anymore; the hunt only ends on a hit, on
+        // Cancel/ESC, or at the library's own edges. Queries over 30 letters can't
+        // sit in any spine, so those are refused up front.
+        const hit = best || decodeTitle(q);
+        if (hit) {
+            document.getElementById('book-input').value = '';
+            document.getElementById('book-find').value = '';
+            goToBook(hit, null, fw);
+            return;
+        }
+        if (q.length > 30) {
+            document.getElementById('elev-status').textContent = 'Titles hold 30 letters at most — nothing that long can match.';
+            return;
+        }
+        huntChain = { engine: 'title', query: q, marks: fw, literal: false, whole: false, seen: new Set() };
+        startTitleSearch(q,
+            (hit2) => {
+                document.getElementById('book-input').value = '';
+                document.getElementById('book-find').value = '';
+                goToBook(hit2, null, fw);
+            },
+            (st) => {
+                document.getElementById('elev-status').textContent = 'Turned ' + st.rooms.toLocaleString() + ' titles — no title holds “' + q.slice(0, 40) + '”.';
+            });
+        return;
+    }
+    if (fw.length) {
+        // v65: no title — sample until a room holds ALL the words, then use it.
+        huntChain = { engine: 'content', query: fw, marks: fw, literal: false, whole: false, seen: new Set() };
+        startContentSearch(fw,
+            (hit) => {
+                document.getElementById('book-find').value = '';
+                goToBook(hit, null, fw);
+            },
+            (st) => {
+                document.getElementById('elev-status').textContent = 'Turned ' + st.rooms.toLocaleString() + ' books — those words share no book. Try fewer/shorter words.';
+            });
+        return;
+    }
+    const it = document.getElementById('book-intitle').value.trim();
+    if (it) {
+        // v70: title-contains — spines holding the fragment (titles ≤30 letters).
+        if (it.length > 30) {
+            document.getElementById('elev-status').textContent = 'Titles hold 30 letters at most — nothing that long can match.';
+            return;
+        }
+        huntChain = { engine: 'title', query: it, marks: fw, literal: false, whole: false, seen: new Set() };
+        startTitleSearch(it,
+            (hit) => {
+                document.getElementById('book-intitle').value = '';
+                goToBook(hit, null, fw);
+            },
+            (st) => {
+                document.getElementById('elev-status').textContent = 'Turned ' + st.rooms.toLocaleString() + ' titles — no title holds “' + it.slice(0, 40) + '”.';
+            });
+        return;
+    }
+    const itw = document.getElementById('book-titleword').value.trim();
+    if (itw) {
+        // v75: title whole-word — spines holding the word exactly (spine words run
+        // 2–7 letters, so anything else is refused up front).
+        const toks = itw.toLowerCase().split(/\s+/).filter(w => w.length >= 2).slice(0, 8);
+        if (!toks.length) {
+            document.getElementById('elev-status').textContent = 'Type a word of 2+ letters.';
+            return;
+        }
+        if (toks.some(w => w.length > 7)) {
+            document.getElementById('elev-status').textContent = 'Spine words run 2–7 letters — nothing that long can match.';
+            return;
+        }
+        huntChain = { engine: 'title', query: itw, marks: fw, literal: false, whole: true, seen: new Set() };
+        startTitleSearch(itw,
+            (hit) => {
+                document.getElementById('book-titleword').value = '';
+                goToBook(hit, null, fw);
+            },
+            (st) => {
+                document.getElementById('elev-status').textContent = 'Turned ' + st.rooms.toLocaleString() + ' titles — no title holds that exact word.';
+            }, true);
+        return;
+    }
+    const vs = document.getElementById('book-volume').value.trim();
+    if (vs) {
+        // v78: volume number → its room directly (the number on every cover plate).
+        if (!/^-?\d{1,16}$/.test(vs)) {
+            document.getElementById('elev-status').textContent = 'Volumes are plain integers.';
+            return;
+        }
+        const dec = decodeVolume(Number(vs));
+        if (!dec) {
+            document.getElementById('elev-status').textContent = 'No book carries volume ' + vs + '.';
+            return;
+        }
+        document.getElementById('book-volume').value = '';
+        goToBook(dec, null, fw);
+        return;
+    }
+    let want = parseInt(document.getElementById('elev-input').value, 10);
+    if (isNaN(want)) { document.getElementById('elev-status').textContent = 'Enter a floor number first.'; return; }
+    want = Math.max(-9000000000, Math.min(9000000000, want));
+    closeElevUI();
+    renderer.domElement.requestPointerLock();
+    if (want === elev.cabinLevel) { toast('You are already on Floor ' + want.toLocaleString(), 2000); return; }
+    startTravel(want);
+}
+function startTravel(want) {
+    Music.ensure();
+    elev.busy = true;
+    elev.phase = 'closing';
+    elev.from = elev.cabinLevel;
+    elev.to = want;
+    pos.x = ELEV.cx; pos.z = ELEV.cz;
+    vy = 0;
+}
+function setShaftDoors(level, t) {
+    const p = doorsByLevel[level];
+    if (p) setDoorPair(p, t);
+}
+// ================= Book search + highlight (v57) =================
+let pendingHighlight = null, bookHighlight = null, pendingFind = null;
+let highlightMat = null, highlightLineMat = null;
+// v76/v77: sync title spirals retired — decodeTitle answers exact spines in O(1),
+// and the async title engine hunts fragments without end.
+// ================= Shelves are frozen (v64) =================
+// Old Babel rule: searching never shelves anything — every address holds the same
+// book forever, found or stumbled on by lookup. Shelves named before the freeze
+// below are still read + searched, but nothing new is ever added.
+const customBooks = {};
+try {
+    const saved = JSON.parse(localStorage.getItem('loa_custom_books') || '{}');
+    for (const k of Object.keys(saved)) {
+        const e = saved[k];
+        if (Object.keys(customBooks).length >= 500) break;
+        if (e && typeof e.title === 'string' && typeof e.vol === 'number') customBooks[e.vol] = { title: e.title, h1: e.h1 | 0, h2: e.h2 | 0, level: e.level | 0 };
+    }
+} catch (err) { /* private mode etc. — dedications just last the session */ }
+// v64: shelving retired — see frozen notice above.
+// Display title/text: dedication first, catalog formula otherwise.
+function bookTitle(vol, level) {
+    const cb = customBooks[vol];
+    return cb ? cb.title : genTitle(vol, level);
+}
+function bookText(vol, level) {
+    const cb = customBooks[vol];
+    return cb ? escHtml(cb.title) + '<br><br>' + genText(cb.h1, cb.h2) : genText(vol, level);
+}
+// v64 appendix: a second independent stream per address — the v63 body above never
+// changes a byte; all v64+ words live in this appended page. Frozen pattern: future
+// growth appends new streams, never touches old ones.
+function genAppendix(vol, level) {
+    let seed = genHash('x' + vol + 'l' + level) || 1;
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) & 0x7fffffff; return seed / 0x7fffffff; };
+    const pick = (a) => a[Math.floor(rnd() * a.length)];
+    const AN = PROSE_NOUN.concat(NOUN2), AA = PROSE_ADJ.concat(ADJ2), AV = PROSE_PAST.concat(VPAST2),
+        AB = PROSE_BASE.concat(VBASE2), AP = PROSE_PREP.concat(PREP2), ANM = PROSE_NAME.concat(NAME2);
+    const N = () => pick(AN), A = () => pick(AA), V = () => pick(AV),
+        B = () => pick(AB), P = () => pick(AP), PN = () => pick(ANM), O = () => pick(PROSE_OPEN);
+    const T = [
+        () => `the ${A()} ${N()} ${V()} ${P()} the ${A()} ${N()}.`,
+        () => `${PN()} ${V()} ${P()} the ${A()} ${N()}.`,
+        () => `let the ${N()} ${B()} ${P()} the ${A()} ${N()}.`,
+        () => `${B()} the ${A()} ${N()} ${P()} the ${N()}.`,
+        () => `we ${B()} ${P()} the ${N()} ${P()} the ${A()} ${N()}.`,
+        () => `it is written that the ${N()} ${V()}.`,
+        () => `o ${A()} ${N()}, ${B()} ${P()} the ${N()}.`,
+        () => `when the ${N()} ${V()}, the ${N()} ${V()}.`,
+        () => `${O()} the ${A()} ${N()} ${V()} ${P()} the ${N()}.`,
+        () => `the ${N()} of the ${A()} ${N()} ${V()} ${P()} ${PN()}.`
+    ];
+    const paras = [];
+    let total = 0;
+    while (total < 700) {
+        const words = [];
+        const sentences = 3 + Math.floor(rnd() * 3);
+        for (let s = 0; s < sentences; s++) {
+            const raw = pick(T)();
+            words.push(...(raw.charAt(0).toUpperCase() + raw.slice(1)).split(' '));
+        }
+        const lines = [];
+        let line = '';
+        for (const w of words) {
+            const t = (line ? line + ' ' : '') + w;
+            if (t.length > 64 && line) { lines.push(line); line = w; }
+            else line = t;
+        }
+        if (line) lines.push(line);
+        paras.push(lines.join('<br>'));
+        total += words.join(' ').length;
+    }
+    return paras.join('<br><br>');
+}
+function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+// v60: find-in-book — wraps keyword hits in <mark>, skipping the <br> tags.
+// cs=true marks case-sensitively (exact search). Returns {html, count}.
+function highlightWords(html, words, cs) {
+    let count = 0, out = html;
+    const flags = cs ? 'g' : 'gi';
+    for (const w of words) {
+        const esc = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp('(' + esc + ')', flags);
+        out = out.split(/(<[^>]*>)/g).map((part, i) => {
+            if (i % 2 === 1) return part;
+            return part.replace(re, (m) => { count++; return '<mark class="found">' + m + '</mark>'; });
+        }).join('');
+    }
+    return { html: out, count };
+}
+function clearHighlight() {
+    if (!bookHighlight) return;
+    const h = bookHighlight;
+    bookHighlight = null;
+    if (h.mesh) {
+        h.mesh.material = h.prevMat;
+        if (h.outline && h.outline.parent) h.outline.parent.remove(h.outline);
+        if (h.outline) h.outline.geometry.dispose();
+    }
+}
+function applyHighlight(level, vol, note) {
+    clearHighlight();
+    if (!levels[level]) buildLevel(level);
+    const list = booksByLevel[level] || [];
+    const mesh = list.find(m => m.userData.vol === vol);
+    if (!mesh) { toast('Book is gone — try the search again', 2500); return; }
+    if (!highlightMat) {
+        highlightMat = new THREE.MeshLambertMaterial({ color: 0xffd700, emissive: 0xff9500, emissiveIntensity: 1 });
+        highlightLineMat = new THREE.LineBasicMaterial({ color: 0xffe45e });
+    }
+    // Gold wire box riding the book (copies its shelf tilt) + glowing cover.
+    const outline = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), highlightLineMat);
+    outline.position.copy(mesh.position);
+    outline.rotation.copy(mesh.rotation);
+    outline.scale.set(1.35, 1.18, 1.6);
+    mesh.parent.add(outline);
+    bookHighlight = { mesh, outline, prevMat: mesh.material, level, until: clock.elapsedTime + 20 };
+    mesh.material = highlightMat;
+    const loc = getLoc(vol);
+    toast((note || '') + 'Floor ' + level.toLocaleString() + ' — ' + bookTitle(vol, level) + ' — ' + loc.wall + ' · Shelf ' + loc.shelf + ' · #' + loc.pos + ' — follow the gold glow', 7000);
+}
+function elevRebase() {
+    // Only 3 true floors ever exist: unload everything, shift the world so the
+    // destination renders near the origin (no float-precision wobble), rebuild target ±1.
+    Object.keys(levels).forEach(k => unloadLevel(parseInt(k, 10)));
+    baseTrue = elev.to;
+    YSHIFT = -elev.to * CH;
+    elev.cabinY = 0;
+    cabinG.position.y = 0;
+    pos.x = ELEV.cx; pos.z = ELEV.cz;
+    playerY = EYE; vy = 0; onGround = true;
+    elev.cabinLevel = elev.to;
+    for (let L = elev.to - 1; L <= elev.to + 1; L++) buildLevel(L);
+    elev.doorT = 0;
+    setShaftDoors(elev.to, 0);
+    setDoorPair(cabinDoors, 0);
+}
+function updateElevator(dt) {
+    if (!elev.busy) return;
+    if (elev.phase === 'closing') {
+        elev.doorT = Math.max(0, elev.doorT - dt / 0.7);
+        setShaftDoors(elev.cabinLevel, elev.doorT);
+        setDoorPair(cabinDoors, elev.doorT);
+        if (elev.doorT <= 0) { elev.phase = 'fadeout'; elev.pt = 0.65; setFade(true); Music.start(); }
+    } else if (elev.phase === 'fadeout') {
+        elev.pt -= dt;
+        if (elev.pt <= 0) {
+            elevRebase();
+            elev.phase = 'count'; elev.pt = 1.6;
+            toast('Generating Floors ' + (elev.to - 1).toLocaleString() + ' … ' + (elev.to + 1).toLocaleString());
+        }
+    } else if (elev.phase === 'count') {
+        elev.pt -= dt;
+        const k = 1 - Math.max(0, elev.pt) / 1.6;
+        const shown = Math.round(elev.from + (elev.to - elev.from) * k);
+        toast('⚱ Floor ' + shown.toLocaleString() + ' ⚱');
+        if (elev.pt <= 0) { elev.phase = 'fadein'; elev.pt = 0.65; setFade(false); }
+    } else if (elev.phase === 'fadein') {
+        elev.pt -= dt;
+        if (elev.pt <= 0) { elev.phase = 'opening'; Music.ding(); }
+    } else if (elev.phase === 'opening') {
+        elev.doorT = Math.min(1, elev.doorT + dt / 0.7);
+        setShaftDoors(elev.cabinLevel, elev.doorT);
+        setDoorPair(cabinDoors, elev.doorT);
+        if (elev.doorT >= 1) {
+            elev.busy = false;
+            elev.phase = 'idle';
+            toast('Arrived — Floor ' + elev.cabinLevel.toLocaleString(), 2500);
+            Music.stop(2.5);
+            const h = pendingHighlight;
+            pendingHighlight = null;
+            if (h && h.level === elev.cabinLevel) applyHighlight(h.level, h.vol, h.note);
+        }
+    }
+}
+
+// ================= Main =================
+function init() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x241610);
+    scene.fog = new THREE.Fog(0x241610, 18, 70);
+    clock = new THREE.Clock();
+    camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 220);
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
+    renderer.shadowMap.enabled = false;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    document.body.appendChild(renderer.domElement);
+
+    initShared();
+    scene.add(new THREE.AmbientLight(0xfff0d0, 0.42));
+    scene.add(new THREE.HemisphereLight(0xfff5e0, 0x8b7355, 0.25));
+    const dl = new THREE.DirectionalLight(0xfff0d0, 0.2);
+    dl.position.set(10, 20, 10);
+    scene.add(dl);
+
+    window.addEventListener('resize', () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+    });
+    window.addEventListener('keydown', e => {
+        if (uiOpen) {
+            if (e.code === 'Escape') { abortContentSearch(); closeElevUI(); }
+            return;
+        }
+        keys[e.code] = true;
+        if (e.code === 'KeyE' && nearBook && !bookOpen && !elev.busy) openBook(nearBook);
+        if (e.code === 'KeyF' && !bookOpen && !elev.busy) openElevUI();
+        if (e.code === 'KeyM') Music.toggle();
+        if (e.code === 'Escape') { if (bookOpen) closeBook(); else if (locked) document.exitPointerLock(); }
+        if (e.code === 'Space' && onGround && locked && !bookOpen && !elev.busy) { vy = 6.5; onGround = false; }
+        if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
+    });
+    window.addEventListener('keyup', e => keys[e.code] = false);
+    window.addEventListener('mousemove', e => {
+        if (!locked || bookOpen || uiOpen) return;
+        yaw -= e.movementX * 0.0021;
+        pitch -= e.movementY * 0.0021;
+        pitch = Math.max(-1.25, Math.min(1.25, pitch));
+    });
+    renderer.domElement.addEventListener('click', () => { if (!locked && !bookOpen && !uiOpen) renderer.domElement.requestPointerLock(); });
+    document.addEventListener('pointerlockchange', () => {
+        locked = !!document.pointerLockElement;
+        document.getElementById('blocker').classList.toggle('hidden', locked);
+    });
+    document.getElementById('blocker').addEventListener('click', () => renderer.domElement.requestPointerLock());
+    document.getElementById('close-book').addEventListener('click', closeBook);
+    document.getElementById('elev-go').addEventListener('click', elevGo);
+    document.getElementById('find-next').addEventListener('click', () => { findNext(); });
+    document.getElementById('elev-cancel').addEventListener('click', () => { abortContentSearch(); closeElevUI(); renderer.domElement.requestPointerLock(); });
+    document.getElementById('elev-input').addEventListener('keydown', e => {
+        e.stopPropagation();
+        if (e.code === 'Enter' || e.code === 'NumpadEnter') elevGo();
+    });
+    document.getElementById('book-input').addEventListener('keydown', e => {
+        e.stopPropagation();
+        if (e.code === 'Enter' || e.code === 'NumpadEnter') elevGo();
+    });
+    document.getElementById('book-find').addEventListener('keydown', e => {
+        e.stopPropagation();
+        if (e.code === 'Enter' || e.code === 'NumpadEnter') elevGo();
+    });
+    document.getElementById('book-exact').addEventListener('keydown', e => {
+        e.stopPropagation();
+        if (e.code === 'Enter' || e.code === 'NumpadEnter') elevGo();
+    });
+    document.getElementById('book-intitle').addEventListener('keydown', e => {
+        e.stopPropagation();
+        if (e.code === 'Enter' || e.code === 'NumpadEnter') elevGo();
+    });
+    document.getElementById('book-titleword').addEventListener('keydown', e => {
+        e.stopPropagation();
+        if (e.code === 'Enter' || e.code === 'NumpadEnter') elevGo();
+    });
+    document.getElementById('book-volume').addEventListener('keydown', e => {
+        e.stopPropagation();
+        if (e.code === 'Enter' || e.code === 'NumpadEnter') elevGo();
+    });
+    document.getElementById('elev-btn').addEventListener('click', () => {
+        if (!bookOpen && !elev.busy && !uiOpen) openElevUI();
+    });
+    document.getElementById('music-btn').addEventListener('click', () => Music.toggle());
+
+    buildLevel(-1); buildLevel(0); buildLevel(1);
+    buildCabin();
+    if (SHOT) {
+        document.getElementById('blocker').classList.add('hidden');
+        locked = true;
+        const P = {
+            room:     { p: [-1, 1.7, -2], y: -1.1, x: 0 },
+            stairs:   { p: [5.4, 1.7, -5.5], y: Math.PI, x: 0.35 },
+            welltop:  { p: [5.4, 6.367, 3.0], y: -0.7, x: -0.45 },
+            elevator: { p: [-1.8, 1.7, -4.6], y: Math.PI / 2, x: 0.05 },
+            upwell:   { p: [5.4, 3.7, -1.0], y: Math.PI, x: 0.5 },
+            stairside: { p: [2.0, 1.7, 0.5], y: -Math.PI / 2, x: 0.1 },
+            walkmid:  { p: [5.4, 1.7, -5.5], y: Math.PI, x: 0.1, walk: 1 },
+            walktop:  { p: [5.4, 1.7, -5.5], y: Math.PI, x: 0.1, walk: 1 },
+            top:      { p: [5.4, 7.7, 4.5], y: Math.PI, x: 0, walk: 1 }
+        }[SHOT] || { p: [-1, 1.7, -2], y: 0, x: 0 };
+        pos.set(P.p[0], 0, P.p[2]); playerY = P.p[1]; yaw = P.y; pitch = P.x; vy = 0;
+        if (P.walk) keys['KeyW'] = true;
+    }
+    camera.position.set(pos.x, playerY, pos.z);
+    animate();
+}
+
+const _fwd = new THREE.Vector3();
+const _rgt = new THREE.Vector3();
+const _ray = new THREE.Raycaster();
+const _ndc = new THREE.Vector2(0, 0);
+
+function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const t = clock.elapsedTime;
+
+    updateElevator(dt);
+
+    if (!bookOpen && !uiOpen && locked && !elev.busy) {
+        const running = (keys['ShiftLeft'] || keys['ShiftRight']) && (keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD']);
+        const speed = (running ? RUN : WALK) * dt;
+        _fwd.set(-Math.sin(yaw), 0, -Math.cos(yaw));
+        _rgt.set(Math.cos(yaw), 0, -Math.sin(yaw));
+        const prevX = pos.x, prevZ = pos.z;
+        if (keys['KeyW']) pos.addScaledVector(_fwd, speed);
+        if (keys['KeyS']) pos.addScaledVector(_fwd, -speed);
+        if (keys['KeyD']) pos.addScaledVector(_rgt, speed);
+        if (keys['KeyA']) pos.addScaledVector(_rgt, -speed);
+        pos.x = Math.max(-PLAY, Math.min(PLAY, pos.x));
+        pos.z = Math.max(-PLAY, Math.min(PLAY, pos.z));
+
+        const solids = [
+            { x: -1, z: 0, r: 1.55 },
+            { x: -4.6, z: 4.6, r: 0.5 },
+            { x: 3.6, z: -4.6, r: 0.5 }, { x: 3.6, z: 4.6, r: 0.5 },
+            { x: 1.8, z: 2.5, r: 0.45 }, { x: 1.8, z: -2.5, r: 0.45 }
+        ];
+        for (const s of solids) {
+            const dx = pos.x - s.x, dz = pos.z - s.z;
+            const d2 = dx * dx + dz * dz;
+            if (d2 < s.r * s.r && d2 > 1e-6) {
+                const d = Math.sqrt(d2);
+                pos.x = s.x + dx / d * s.r;
+                pos.z = s.z + dz / d * s.r;
+            }
+        }
+        const feetNow = playerY - EYE;
+        if (inShaft(pos.x, pos.z) && Math.abs(feetNow - elev.cabinY) > 0.6) {
+            pos.x = prevX; pos.z = prevZ;
+        }
+        // v48/v51/v52: cabin/shaft walls are solid on EVERY floor — slide along them,
+        // never through. v52 picks the storey by your feet (only the cabin's floor
+        // can read "open"); the v51 0.25 eye radius means the near plane (0.1) can
+        // never reach a face to clip inside.
+        if (elevSolidAt(pos.x, pos.z)) {
+            if (!elevSolidAt(prevX, pos.z)) pos.x = prevX;
+            else if (!elevSolidAt(pos.x, prevZ)) pos.z = prevZ;
+            else { pos.x = prevX; pos.z = prevZ; }
+        }
+        // v56: stair bars are hard — slide along them, never stand inside them.
+        // (Covers landings, rail ends, and mid-jump; the onRamp clamp below is the
+        // backstop that also keeps feet over the treads.)
+        if (stairBarSolid(pos.x, pos.z, feetNow)) {
+            if (!stairBarSolid(prevX, pos.z, feetNow)) pos.x = prevX;
+            else if (!stairBarSolid(pos.x, prevZ, feetNow)) pos.z = prevZ;
+            else { pos.x = prevX; pos.z = prevZ; }
+        }
+        // Tight-well channel: walk between the thin steel posts (smooth pushout);
+        // shaft masonry at the wrong height = solid (revert). Well is exactly the flight.
+        if (onGround) {
+            const liV = stairLift(pos.z);
+            if (liV > 0.02 && liV < 0.98 && Math.abs(pos.x - FCX) < 1.35) {
+                let onRamp = false;
+                for (const k of Object.keys(levels)) {
+                    const L = parseInt(k, 10);
+                    if (Math.abs(L * CH + YSHIFT + liV * CH - feetNow) <= 0.55) { onRamp = true; break; }
+                }
+                if (onRamp) {
+                    // v56: eye 0.25 off the handrail faces (the old 0.28/0.26 left eyes
+                    // 0.07 off — inside the 0.1 near plane, bars entered your body).
+                    if (pos.x < FX0 + 0.46) pos.x = FX0 + 0.46;
+                    else if (pos.x > FX1 - 0.46) pos.x = FX1 - 0.46;
+                } else if (pos.x > FX0 - 0.05 && pos.x < VOID_X1 + 0.05) {
+                    pos.x = prevX; pos.z = prevZ;
+                }
+            }
+        }
+
+        vy -= 18 * dt;
+        playerY += vy * dt;
+        const feet = playerY - EYE;
+        const gh = groundHeight(pos.x, pos.z, feet);
+        if (gh !== null && playerY <= gh + EYE) {
+            playerY = gh + EYE; vy = 0; onGround = true;
+            safeTrue = Math.floor((gh - YSHIFT) / CH + 1e-6) + baseTrue;
+        }
+        else if (gh === null && playerY < -30) {
+            for (let L = safeTrue - 1; L <= safeTrue + 1; L++) buildLevel(L);
+            pos.x = FCX; pos.z = -2.0;
+            playerY = safeTrue * CH + YSHIFT + EYE + 2.0; vy = 0; onGround = true;
+        }
+        else if (gh !== null && Math.abs(vy) < 0.01 && Math.abs(feet - gh) < 0.05) onGround = true;
+        else if (vy !== 0) onGround = false;
+
+        if (!inHoleRect(HOLE_S, pos.x, pos.z) && !inHoleRect(ELEV, pos.x, pos.z)) {
+            const spaceL = Math.floor((playerY - 0.4 - YSHIFT) / CH);
+            const ceil = spaceL * CH + YSHIFT + CH - 0.25;
+            if (playerY > ceil) { playerY = ceil; vy = Math.min(vy, 0); }
+        }
+
+        // duck the view slightly under the low overhang near the top of each flight
+        let eyeTarget = EYE;
+        if (onGround && inStairX(pos.x)) {
+            const liE = stairLift(pos.z);
+            if (liE >= 0) {
+                const mRel = (((feet - YSHIFT) % CH) + CH) % CH;
+                if (mRel > 2.8) eyeTarget = Math.max(1.15, EYE - (mRel - 2.8) * 0.55);
+            }
+        }
+        eyeH += (eyeTarget - eyeH) * Math.min(1, dt * 5);
+
+        camera.position.set(pos.x, playerY - EYE + eyeH, pos.z);
+        camera.rotation.order = 'YXZ';
+        camera.rotation.y = yaw;
+        camera.rotation.x = pitch;
+
+        const wantFov = running ? 77 : 70;
+        if (Math.abs(camera.fov - wantFov) > 0.1) {
+            camera.fov += (wantFov - camera.fov) * Math.min(1, dt * 6);
+            camera.updateProjectionMatrix();
+        }
+
+        const curTrue = Math.round((playerY - EYE) / CH) + baseTrue;
+        // v36c: keep 5 levels so the 2 handrail bars never unload mid-flight
+        for (let L = curTrue - 2; L <= curTrue + 2; L++) buildLevel(L);
+        Object.keys(levels).forEach(k => {
+            const L = parseInt(k, 10);
+            if (L < curTrue - 2 || L > curTrue + 2) unloadLevel(L);
+        });
+
+        if (t - lastRay > 0.12) {
+            lastRay = t;
+            _ray.setFromCamera(_ndc, camera);
+            _ray.far = 3.0;
+            const list = booksByLevel[curTrue] || [];
+            const hits = list.length ? _ray.intersectObjects(list, false) : [];
+            if (hits.length > 0) {
+                nearBook = hits[0].object;
+                const dd = nearBook.userData;
+                document.getElementById('prompt').textContent = 'Press E — ' + bookTitle(dd.vol, dd.level);
+                document.getElementById('prompt').style.display = 'block';
+            } else {
+                nearBook = null;
+                document.getElementById('prompt').style.display = 'none';
+            }
+        }
+
+        const feet2 = playerY - EYE;
+        const dx = pos.x - (ELEV.x1 + 0.4), dz = pos.z - ELEV.cz;
+        nearElev = (dx * dx + dz * dz < 4.0 * 4.0) && Math.abs(feet2 - elev.cabinY) < 1.6;
+        if (nearElev && !nearBook) {
+            document.getElementById('prompt').textContent = 'Press F — Elevator (Floor ' + elev.cabinLevel.toLocaleString() + ')';
+            document.getElementById('prompt').style.display = 'block';
+        } else if (!nearBook) {
+            document.getElementById('prompt').style.display = 'none';
+        }
+
+        const names = ['Entrance Hall', 'First Floor', 'Second Floor', 'Third Floor', 'Fourth Floor', 'Fifth Floor', 'Sixth Floor', 'Seventh Floor', 'Eighth Floor', 'Ninth Floor'];
+        const nm = curTrue >= 0 ? (names[curTrue + 1] || ('Floor ' + curTrue.toLocaleString())) : ('Depth ' + Math.abs(curTrue).toLocaleString());
+        document.getElementById('level-display').textContent = `Floor ${curTrue.toLocaleString()} — ${nm}`;
+    } else if (elev.busy) {
+        nearBook = null;
+        eyeH = EYE;
+        document.getElementById('prompt').style.display = 'none';
+        camera.position.set(pos.x, playerY, pos.z);
+        camera.rotation.order = 'YXZ';
+        camera.rotation.y = yaw;
+        camera.rotation.x = pitch;
+    }
+
+    for (const f of flames) {
+        const s = 1 + Math.sin(t * 9 + f.phase) * 0.15 + Math.sin(t * 23 + f.phase * 2) * 0.07;
+        f.mesh.scale.set(s, s * 1.25, s);
+    }
+    // v57: book-find glow pulse (20s, then the cover goes back to normal).
+    if (bookHighlight) {
+        if (t > bookHighlight.until) clearHighlight();
+        else {
+            const p = 0.5 + 0.5 * Math.sin(t * 6);
+            if (highlightMat) highlightMat.emissiveIntensity = 0.7 + 0.9 * p;
+            const s = 1.28 + 0.10 * p;
+            bookHighlight.outline.scale.set(s, 1.12 + 0.08 * p, s);
+        }
+    }
+    for (const d of dusties) d.pts.rotation.y = t * 0.02;
+
+    renderer.render(scene, camera);
+}
+
+init();
+</script>
+</body>
+</html>
