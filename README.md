@@ -8,6 +8,14 @@ The repository includes two distinct implementations:
 
 ---
 
+# 👥 Credits & Attribution
+
+* **3D World, Graphics & Game Mechanics:** Developed and created using **Muse Spark 1.3** (`library_of_alexandria_v81.html`).
+* **True Babel Engine, $O(1)$ Inversion & BigInt Physics:** Designed and implemented using **Gemini 3.8 Flash** (`true_babel.html`).
+* **Conceptual & Literary Foundation:** Inspired by the 1941 short story *"The Library of Babel"* (*La biblioteca de Babel*) by **Jorge Luis Borges**.
+
+---
+
 ## 📖 Overview
 
 In Jorge Luis Borges' 1941 short story *"The Library of Babel"*, a vast universe of hexagonal rooms houses every possible 410-page book constructed from a finite alphabet.
