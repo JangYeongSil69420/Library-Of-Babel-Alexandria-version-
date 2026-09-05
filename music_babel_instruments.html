@@ -1,0 +1,1899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Great Library of Alexandria — Infinite Musical Babel (Full Graphics & Autoplay)</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{overflow:hidden;background:#1a0f0a;font-family:'Georgia',serif}
+        canvas{display:block}
+        #vignette{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:40;
+            background:radial-gradient(ellipse at center, rgba(0,0,0,0) 52%, rgba(10,4,0,0.55) 100%)}
+        #fade{position:fixed;top:0;left:0;width:100%;height:100%;background:#000;opacity:0;pointer-events:none;z-index:940}
+        #blocker{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;justify-content:center;align-items:center;z-index:100;cursor:pointer;transition:opacity 0.3s}
+        #blocker.hidden{opacity:0;pointer-events:none;display:none !important}
+        #instructions{text-align:center;color:#ffd700;padding:24px;max-width:780px}
+        #instructions h1{font-size:42px;margin-bottom:18px;text-shadow:0 0 20px rgba(255,215,0,0.5)}
+        #instructions p{font-size:16px;color:#c9a227;margin:8px 0;line-height:1.5}
+        #crosshair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:rgba(255,215,0,0.85);box-shadow:0 0 6px rgba(255,215,0,0.8);z-index:50;pointer-events:none}
+        #prompt{position:fixed;top:58%;left:50%;transform:translateX(-50%);color:#ffd700;font-size:16px;background:rgba(0,0,0,0.85);padding:10px 22px;border:2px solid #ffd700;border-radius:8px;z-index:50;display:none;pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+        #hud{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);color:#ffd700;font-size:13px;background:rgba(0,0,0,0.6);padding:8px 16px;border-radius:5px;z-index:50;white-space:nowrap}
+        #level-display{position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#ffd700;font-size:14px;background:rgba(0,0,0,0.6);padding:6px 14px;border-radius:4px;z-index:50}
+        #toast{position:fixed;bottom:64px;left:50%;transform:translateX(-50%);color:#ffe9a8;font-size:15px;background:rgba(40,20,5,0.92);border:1px solid #c9a227;padding:9px 22px;border-radius:6px;z-index:960;display:none;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+        
+        #book-viewer{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:1000;display:none;justify-content:center;align-items:center}
+        .book-container{display:flex;width:94%;max-width:1250px;height:86vh;background:#2a1810;border-radius:8px;overflow:hidden;box-shadow:0 0 50px rgba(0,0,0,0.9);border:2px solid #5a3a1a}
+        .book-cover{width:320px;padding:26px 20px;display:flex;flex-direction:column;justify-content:space-between;align-items:center;border-right:4px solid #1a0f0a;flex-shrink:0;background:#1d1008}
+        .book-cover h1{color:#ffd700;font-size:18px;text-align:center;line-height:1.4;word-break:break-word}
+        .book-cover .ornament{width:60%;height:2px;background:#ffd700;margin:10px 0}
+        .book-cover .location{color:#ffd700;font-size:11px;text-align:center;opacity:0.85;line-height:1.6;word-break:break-all}
+        .book-cover .stats{color:#ffe9a8;font-size:12px;font-family:monospace;background:#0d0603;padding:10px 12px;border-radius:6px;width:100%;border:1px solid #5a3a1a;line-height:1.55}
+        
+        .transport-controls{display:flex;flex-direction:column;gap:8px;width:100%}
+        .btn-play{background:#238636;color:#ffd700;border:2px solid #ffd700;padding:10px;border-radius:6px;cursor:pointer;font-family:'Georgia',serif;font-size:14px;font-weight:bold;transition:background 0.2s;width:100%}
+        .btn-play:hover{background:#2ea043}
+        .btn-play.playing{background:#8b0000;color:#fff}
+        .btn-play.playing:hover{background:#a50000}
+
+        .book-page-wrap{flex:1;display:flex;flex-direction:column;height:100%;background:#0d0804;overflow:hidden}
+        .book-header{padding:12px 24px;background:#1a0f08;border-bottom:1px solid #4a2810;color:#ffd700;font-family:monospace;font-size:12px;display:flex;justify-content:space-between;align-items:center}
+        .book-page{flex:1;padding:18px 22px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+        
+        /* Piano Roll Visualizer */
+        .piano-roll-container{background:#140c06;border:2px solid #5a3a1a;border-radius:6px;padding:12px;position:relative;overflow-x:auto}
+        .track-row{display:flex;align-items:center;margin-bottom:8px}
+        .track-label{width:95px;font-size:12px;color:#ffd700;font-family:monospace;flex-shrink:0;font-weight:bold}
+        .track-grid{display:grid;grid-template-columns:repeat(62, 14px);grid-gap:2px;background:#0d0603;padding:5px;border-radius:4px}
+        .grid-cell{height:18px;background:#1e1008;border-radius:2px;transition:background 0.1s}
+        .grid-cell.active-piano{background:#ffd700;box-shadow:0 0 6px #ffd700}
+        .grid-cell.active-strings{background:#58a6ff;box-shadow:0 0 6px #58a6ff}
+        .grid-cell.active-bass{background:#f85149;box-shadow:0 0 6px #f85149}
+        .grid-cell.active-lead{background:#7ee787;box-shadow:0 0 6px #7ee787}
+        .grid-cell.current-step{border-left:3px solid #ffffff;border-right:3px solid #ffffff}
+
+        #close-book{position:fixed;top:15px;right:15px;background:#8b0000;color:#ffd700;border:2px solid #ffd700;padding:8px 18px;font-size:14px;cursor:pointer;border-radius:4px;z-index:1001}
+        #close-book:hover{background:#a50000}
+        
+        #elev-ui{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:900;display:none;justify-content:center;align-items:center}
+        #elev-panel{background:linear-gradient(160deg,#3a2412,#1d1006);border:2px solid #c9a227;border-radius:10px;padding:24px 30px;text-align:center;box-shadow:0 0 60px rgba(201,162,39,0.25);width:94%;max-width:820px}
+        #elev-panel h2{color:#ffd700;font-size:26px;margin-bottom:4px}
+        #elev-where-container{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px}
+        #elev-where{color:#c9a227;font-size:13px;margin:0}
+        #copy-floor-btn{background:rgba(40,20,5,0.9);color:#ffd700;border:1px solid #c9a227;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-family:'Georgia',serif;transition:background 0.2s}
+        #copy-floor-btn:hover{background:rgba(139,69,19,0.95);color:#fff}
+        
+        #elev-input{font-size:14px;width:100%;text-align:center;padding:8px;background:#0d0803;color:#ffe9a8;border:1px solid #c9a227;border-radius:6px;font-family:'Georgia',serif;margin:4px 0}
+        
+        .composer-box{background:#0d0603;padding:12px;border-radius:8px;border:1px solid #4a2810;margin:10px 0}
+        .composer-track-selector{display:flex;gap:8px;margin-bottom:8px;justify-content:center}
+        .comp-btn{background:#3a1d0d;color:#ffd700;border:1px solid #8b4513;padding:5px 12px;font-size:12px;border-radius:4px;cursor:pointer;font-family:'Georgia',serif}
+        .comp-btn.active{background:#8b4513;border-color:#ffd700;color:#fff}
+        .comp-grid-scroll{overflow-x:auto;padding-bottom:4px}
+        .composer-grid{display:grid;grid-template-columns:repeat(32, 18px);grid-gap:2px;background:#140b05;padding:6px;border-radius:4px}
+        .comp-cell{height:20px;background:#1e1008;border-radius:2px;cursor:pointer}
+        .comp-cell.selected{background:#ffd700}
+
+        #elev-panel .find-sub{margin-top:8px !important;margin-bottom:2px !important;font-weight:bold;color:#ffd700;font-size:13px}
+        #elev-panel .row{margin-top:14px;display:flex;justify-content:center;gap:10px}
+        #elev-panel button{font-size:14px;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:'Georgia',serif}
+        #elev-go{background:#8b4513;color:#ffd700;border:2px solid #ffd700;font-weight:bold}
+        #elev-go:hover{background:#a55a1a}
+        #elev-cancel{background:transparent;color:#c9a227;border:1px solid #c9a227}
+        #elev-status{color:#ff9a5a !important;margin-top:8px !important;min-height:16px;font-size:12px;font-family:monospace}
+        
+        #elev-btn{position:fixed;bottom:20px;right:20px;color:#ffd700;font-size:14px;background:rgba(40,20,5,0.8);border:2px solid #c9a227;padding:10px 16px;border-radius:8px;z-index:60;cursor:pointer;font-family:'Georgia',serif}
+        #elev-btn:hover{background:rgba(139,69,19,0.9)}
+        #music-btn{position:fixed;bottom:72px;right:20px;color:#ffd700;font-size:13px;background:rgba(40,20,5,0.8);border:1px solid #c9a227;padding:7px 12px;border-radius:8px;z-index:60;cursor:pointer;font-family:'Georgia',serif}
+        #music-btn:hover{background:rgba(139,69,19,0.9)}
+        #ver{position:fixed;bottom:20px;left:20px;color:#c9a227;font-size:11px;background:rgba(0,0,0,0.6);padding:4px 8px;border-radius:4px;z-index:60}
+    </style>
+</head>
+<body>
+    <div id="vignette"></div>
+    <div id="fade"></div>
+    <div id="blocker"><div id="instructions">
+        <h1>The Great Library of Alexandria</h1>
+        <p style="color:#ffe9a8;font-size:13px;letter-spacing:2px;">— INFINITE POLYPHONIC MUSICAL BABEL ENGINE —</p>
+        <p>WASD Move &nbsp;|&nbsp; SHIFT Run &nbsp;|&nbsp; MOUSE Look &nbsp;|&nbsp; E Open / Listen to Score &nbsp;|&nbsp; F Elevator &nbsp;|&nbsp; M Ambient Music &nbsp;|&nbsp; SPACE Jump</p>
+        <p>Approach any book and press <b>E</b> to open it and hear its unique 4-track polyphonic score start automatically.</p>
+        <p style="margin-top:24px;font-style:italic">Click to enter the Library (Audio will begin)</p>
+    </div></div>
+
+    <div id="crosshair"></div>
+    <div id="prompt">Press E to open and play Score</div>
+    <div id="level-display">Floor 0</div>
+    <div id="toast"></div>
+    <div id="hud">WASD Move | SHIFT Run | E Open & Play | F Elevator | M Ambience | SPACE Jump</div>
+    <button id="elev-btn">⚱ Elevator (F)</button>
+    <button id="music-btn">♪ Ambient: on</button>
+    <div id="ver">Musical Babel v10.0</div>
+
+    <div id="elev-ui">
+        <div id="elev-panel">
+            <h2>▼ Musical Catalog & Elevator ▲</h2>
+            <div id="elev-where-container">
+                <p id="elev-where">Cabin at Floor 0</p>
+                <button id="copy-floor-btn" title="Copy floor coordinate">📋 Copy Floor</button>
+            </div>
+            
+            <p class="find-sub">— jump directly to floor coordinate —</p>
+            <input id="elev-input" type="text" placeholder="e.g. 0, 100, -500, or any BigInt..." autocomplete="off">
+            
+            <p class="find-sub">— compose / find any score in existence —</p>
+            <div class="composer-box">
+                <div class="composer-track-selector">
+                    <button class="comp-btn active" data-track="0">🎹 Grand Piano</button>
+                    <button class="comp-btn" data-track="1">🎻 String Ensemble</button>
+                    <button class="comp-btn" data-track="2">🎸 Acoustic Bass</button>
+                    <button class="comp-btn" data-track="3">🎺 Solo Lead</button>
+                </div>
+                <div class="comp-grid-scroll">
+                    <div class="composer-grid" id="comp-grid"></div>
+                </div>
+                <div style="margin-top:8px;display:flex;justify-content:center;gap:8px">
+                    <button class="comp-btn" id="comp-random-btn">🎲 Random Score</button>
+                    <button class="comp-btn" id="comp-clear-btn">🧹 Clear</button>
+                    <button class="comp-btn" id="comp-preview-btn">▶ Preview Composition</button>
+                </div>
+            </div>
+            
+            <div class="row">
+                <button id="elev-go">Find Exact Score Coordinate & Travel</button>
+                <button id="elev-cancel">Cancel</button>
+            </div>
+            <p id="elev-status"></p>
+        </div>
+    </div>
+
+    <div id="book-viewer">
+        <button id="close-book">Close (E / ESC)</button>
+        <div class="book-container">
+            <div class="book-cover">
+                <div>
+                    <h1 id="book-title">Musical Codex</h1>
+                    <div class="ornament"></div>
+                    <div class="location" id="book-location"></div>
+                </div>
+                <div class="stats" id="book-stats">
+                    Tempo: 120 BPM<br>
+                    Key: C Major<br>
+                    Tracks: 4 Polyphonic<br>
+                    State: 2^4096 Feistel
+                </div>
+                <div class="transport-controls">
+                    <button class="btn-play playing" id="score-play-btn">⏹ Stop Score</button>
+                </div>
+            </div>
+            <div class="book-page-wrap">
+                <div class="book-header">
+                    <span>POLYPHONIC SCORE SEQUENCE (62 STEPS)</span>
+                    <span id="book-header-path">score_movement.mid</span>
+                </div>
+                <div class="book-page">
+                    <div class="piano-roll-container">
+                        <div class="track-row">
+                            <div class="track-label">🎹 Piano</div>
+                            <div class="track-grid" id="track-0"></div>
+                        </div>
+                        <div class="track-row">
+                            <div class="track-label">🎻 Strings</div>
+                            <div class="track-grid" id="track-1"></div>
+                        </div>
+                        <div class="track-row">
+                            <div class="track-label">🎸 Bass</div>
+                            <div class="track-grid" id="track-2"></div>
+                        </div>
+                        <div class="track-row">
+                            <div class="track-label">🎺 Lead</div>
+                            <div class="track-grid" id="track-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// =========================================================================
+//     4-ROUND FEISTEL WIDE-BLOCK AVALANCHE PERMUTATION (512 BYTES)
+// =========================================================================
+const TOTAL_SCORE_BYTES = 512;
+const HALF_SCORE_BYTES = TOTAL_SCORE_BYTES / 2;
+const STEPS = 62;
+const BOOKS_PER_FLOOR = 240n;
+
+function roundF(half, seed) {
+    const out = new Uint8Array(HALF_SCORE_BYTES);
+    let acc = seed >>> 0;
+    for (let i = 0; i < HALF_SCORE_BYTES; i++) {
+        acc = (Math.imul(acc, 1664525) + half[i] + 1013904223) >>> 0;
+        out[i] = (half[i] ^ (acc >>> 24)) & 0xFF;
+    }
+    for (let i = HALF_SCORE_BYTES - 1; i >= 0; i--) {
+        acc = (Math.imul(acc, 22695477) + out[i] + 1) >>> 0;
+        out[i] = (out[i] ^ (acc >>> 16) ^ (acc >>> 24)) & 0xFF;
+    }
+    return out;
+}
+
+function forwardFeistel(bytes) {
+    const L = bytes.slice(0, HALF_SCORE_BYTES);
+    const R = bytes.slice(HALF_SCORE_BYTES, TOTAL_SCORE_BYTES);
+
+    const f1 = roundF(R, 0x1A2B3C4D);
+    for (let i = 0; i < HALF_SCORE_BYTES; i++) L[i] ^= f1[i];
+
+    const f2 = roundF(L, 0x5E6F7A8B);
+    for (let i = 0; i < HALF_SCORE_BYTES; i++) R[i] ^= f2[i];
+
+    const f3 = roundF(R, 0x9C8B7A6F);
+    for (let i = 0; i < HALF_SCORE_BYTES; i++) L[i] ^= f3[i];
+
+    const f4 = roundF(L, 0x4D3C2B1A);
+    for (let i = 0; i < HALF_SCORE_BYTES; i++) R[i] ^= f4[i];
+
+    const res = new Uint8Array(TOTAL_SCORE_BYTES);
+    res.set(L, 0);
+    res.set(R, HALF_SCORE_BYTES);
+    return res;
+}
+
+function inverseFeistel(bytes) {
+    const L = bytes.slice(0, HALF_SCORE_BYTES);
+    const R = bytes.slice(HALF_SCORE_BYTES, TOTAL_SCORE_BYTES);
+
+    const f4 = roundF(L, 0x4D3C2B1A);
+    for (let i = 0; i < HALF_SCORE_BYTES; i++) R[i] ^= f4[i];
+
+    const f3 = roundF(R, 0x9C8B7A6F);
+    for (let i = 0; i < HALF_SCORE_BYTES; i++) L[i] ^= f3[i];
+
+    const f2 = roundF(L, 0x5E6F7A8B);
+    for (let i = 0; i < HALF_SCORE_BYTES; i++) R[i] ^= f2[i];
+
+    const f1 = roundF(R, 0x1A2B3C4D);
+    for (let i = 0; i < HALF_SCORE_BYTES; i++) L[i] ^= f1[i];
+
+    const res = new Uint8Array(TOTAL_SCORE_BYTES);
+    res.set(L, 0);
+    res.set(R, HALF_SCORE_BYTES);
+    return res;
+}
+
+function bigIntToSlotBytes(X) {
+    const bytes = new Uint8Array(TOTAL_SCORE_BYTES);
+    let cur = X;
+    if (cur < 0n) cur = -cur;
+    let i = 0;
+    while (cur > 0n && i < TOTAL_SCORE_BYTES) {
+        bytes[i] = Number(cur & 0xFFn);
+        cur >>= 8n;
+        i++;
+    }
+    return bytes;
+}
+
+function slotBytesToBigInt(bytes) {
+    let X = 0n;
+    for (let i = TOTAL_SCORE_BYTES - 1; i >= 0; i--) {
+        X = (X << 8n) | BigInt(bytes[i]);
+    }
+    return X;
+}
+
+function coordsToSlot(levelBigInt, shelfIdx, rowIdx, bookIdx) {
+    const bookOffset = BigInt(shelfIdx * 30 + rowIdx * 10 + bookIdx);
+    let mappedLevel;
+    if (levelBigInt >= 0n) mappedLevel = levelBigInt * 2n;
+    else mappedLevel = (-levelBigInt * 2n) - 1n;
+    return mappedLevel * BOOKS_PER_FLOOR + bookOffset;
+}
+
+function slotToCoords(X) {
+    const bOffset = X % BOOKS_PER_FLOOR;
+    const bIdx = Number(bOffset);
+    const bookIdx = bIdx % 10;
+    const rowIdx = Math.floor(bIdx / 10) % 3;
+    const shelfIdx = Math.floor(bIdx / 30);
+
+    const mappedLevel = X / BOOKS_PER_FLOOR;
+    let levelBigInt;
+    if (mappedLevel % 2n === 0n) levelBigInt = mappedLevel / 2n;
+    else levelBigInt = -((mappedLevel + 1n) / 2n);
+    return { level: levelBigInt, shelf: shelfIdx, row: rowIdx, book: bookIdx };
+}
+
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const SCALES = [
+    [0, 2, 4, 5, 7, 9, 11], // Major
+    [0, 2, 3, 5, 7, 8, 10], // Minor
+    [0, 2, 3, 5, 7, 9, 10], // Dorian
+    [0, 2, 4, 7, 9],        // Pentatonic Major
+    [0, 3, 5, 7, 10]        // Minor Pentatonic
+];
+
+function parseScoreBytes(bytes) {
+    const bpm = 80 + (bytes[0] % 80);
+    const rootKey = bytes[1] % 12;
+    const scaleMode = bytes[2] % SCALES.length;
+    const scale = SCALES[scaleMode];
+
+    const tracks = [];
+    for (let t = 0; t < 4; t++) {
+        const trackSteps = [];
+        const offset = 16 + t * (STEPS * 2);
+        for (let s = 0; s < STEPS; s++) {
+            const rawPitch = bytes[offset + s * 2];
+            const rawVel = bytes[offset + s * 2 + 1];
+            
+            const active = (rawVel % 3) !== 0;
+            let midiNote = 0;
+            if (active) {
+                const degree = rawPitch % scale.length;
+                let octave = 3 + (Math.floor(rawPitch / scale.length) % 3);
+                if (t === 2) octave = 2 + (rawPitch % 2);
+                if (t === 3) octave = 4 + (rawPitch % 2);
+                midiNote = (octave + 1) * 12 + rootKey + scale[degree];
+            }
+            trackSteps.push({
+                active,
+                note: midiNote,
+                vel: 0.5 + (rawVel % 50) / 100,
+                dur: 0.2 + (rawPitch % 3) * 0.1
+            });
+        }
+        tracks.push(trackSteps);
+    }
+
+    return {
+        bpm,
+        rootKey: NOTE_NAMES[rootKey],
+        scaleName: ["Major", "Minor", "Dorian", "Pentatonic Maj", "Minor Pent"][scaleMode],
+        tracks,
+        rawBytes: bytes
+    };
+}
+
+function scoreToBytes(scoreObj) {
+    const bytes = new Uint8Array(TOTAL_SCORE_BYTES);
+    bytes[0] = (scoreObj.bpm - 80) & 0xFF;
+    const rIdx = NOTE_NAMES.indexOf(scoreObj.rootKey);
+    bytes[1] = (rIdx !== -1 ? rIdx : 0) & 0xFF;
+    bytes[2] = 0;
+
+    for (let t = 0; t < 4; t++) {
+        const offset = 16 + t * (STEPS * 2);
+        const trk = scoreObj.tracks[t] || [];
+        for (let s = 0; s < STEPS; s++) {
+            const stp = trk[s];
+            if (stp && stp.active) {
+                bytes[offset + s * 2] = stp.note % 256;
+                bytes[offset + s * 2 + 1] = 127;
+            } else {
+                bytes[offset + s * 2] = 0;
+                bytes[offset + s * 2 + 1] = 0;
+            }
+        }
+    }
+    return bytes;
+}
+
+function getBabelBookScore(levelBigInt, shelfIdx, rowIdx, bookIdx) {
+    const X = coordsToSlot(levelBigInt, shelfIdx, rowIdx, bookIdx);
+    const slotBytes = bigIntToSlotBytes(X);
+    const permuted = forwardFeistel(slotBytes);
+    return { score: parseScoreBytes(permuted), X };
+}
+
+function findBabelCoordinatesForScore(scoreBytes) {
+    const slotBytes = inverseFeistel(scoreBytes);
+    const X = slotBytesToBigInt(slotBytes);
+    const coords = slotToCoords(X);
+    return {
+        level: coords.level,
+        shelf: coords.shelf,
+        row: coords.row,
+        book: coords.book,
+        X
+    };
+}
+
+function formatFloorDisplay(levelBigInt) {
+    const s = levelBigInt.toString();
+    if (s.length <= 16) {
+        return 'Floor ' + Number(s).toLocaleString();
+    }
+    return 'Floor ' + s.slice(0, 6) + '...' + s.slice(-6) + ` [${s.length} digits]`;
+}
+
+function getLoc(shelfIdx, rowIdx, bookIdx) {
+    const walls = ['North Wall (A)', 'North Wall (B)', 'North Wall (C)', 'South Wall (A)', 'South Wall (B)', 'South Wall (C)', 'West Wall (A)', 'West Wall (B)'];
+    const rows = ['Upper Tier', 'Middle Tier', 'Lower Tier'];
+    return {
+        wall: walls[shelfIdx] || `Shelf ${shelfIdx + 1}`,
+        shelf: rows[rowIdx] || `Row ${rowIdx + 1}`,
+        pos: bookIdx + 1
+    };
+}
+
+// ================= High-Fidelity Polyphonic Synth Engine =================
+const Synth = {
+    ctx: null,
+    isPlaying: false,
+    currentScore: null,
+    curStep: 0,
+    timer: null,
+
+    ensure() {
+        if (!this.ctx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AC();
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+    },
+
+    midiToFreq(midi) {
+        return 440 * Math.pow(2, (midi - 69) / 12);
+    },
+
+    playNote(trackIdx, midiNote, vel, dur) {
+        if (!midiNote || !this.ctx) return;
+        const t0 = this.ctx.currentTime;
+        const freq = this.midiToFreq(midiNote);
+
+        if (trackIdx === 0) {
+            // Grand Piano
+            [1, 2, 3, 4].forEach((h, idx) => {
+                const osc = this.ctx.createOscillator();
+                const gn = this.ctx.createGain();
+                osc.type = idx % 2 === 0 ? 'triangle' : 'sine';
+                osc.frequency.setValueAtTime(freq * h, t0);
+                
+                const gVal = (vel * 0.25) / (h * 1.2);
+                gn.gain.setValueAtTime(0.0001, t0);
+                gn.gain.linearRampToValueAtTime(gVal, t0 + 0.004);
+                gn.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 1.6);
+
+                osc.connect(gn);
+                gn.connect(this.ctx.destination);
+                osc.start(t0);
+                osc.stop(t0 + dur * 1.7);
+            });
+        } else if (trackIdx === 1) {
+            // String Ensemble
+            const flt = this.ctx.createBiquadFilter();
+            flt.type = 'lowpass';
+            flt.frequency.setValueAtTime(1200, t0);
+            flt.connect(this.ctx.destination);
+
+            [-4, 4].forEach(detune => {
+                const osc = this.ctx.createOscillator();
+                const gn = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(freq, t0);
+                osc.detune.setValueAtTime(detune, t0);
+
+                gn.gain.setValueAtTime(0.0001, t0);
+                gn.gain.linearRampToValueAtTime(vel * 0.12, t0 + 0.08);
+                gn.gain.linearRampToValueAtTime(vel * 0.08, t0 + dur);
+                gn.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.3);
+
+                osc.connect(gn);
+                gn.connect(flt);
+                osc.start(t0);
+                osc.stop(t0 + dur + 0.35);
+            });
+        } else if (trackIdx === 2) {
+            // Acoustic Bass
+            const osc = this.ctx.createOscillator();
+            const gn = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, t0);
+
+            gn.gain.setValueAtTime(0.0001, t0);
+            gn.gain.linearRampToValueAtTime(vel * 0.35, t0 + 0.008);
+            gn.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 1.2);
+
+            osc.connect(gn);
+            gn.connect(this.ctx.destination);
+            osc.start(t0);
+            osc.stop(t0 + dur * 1.3);
+        } else if (trackIdx === 3) {
+            // Solo Lead
+            const osc = this.ctx.createOscillator();
+            const gn = this.ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(freq, t0);
+
+            gn.gain.setValueAtTime(0.0001, t0);
+            gn.gain.linearRampToValueAtTime(vel * 0.15, t0 + 0.01);
+            gn.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.9);
+
+            osc.connect(gn);
+            gn.connect(this.ctx.destination);
+            osc.start(t0);
+            osc.stop(t0 + dur);
+        }
+    },
+
+    startPlayback(score) {
+        this.ensure();
+        this.stopPlayback();
+        this.currentScore = score;
+        this.isPlaying = true;
+        this.curStep = 0;
+        const btn = document.getElementById('score-play-btn');
+        if (btn) {
+            btn.textContent = '⏹ Stop Score';
+            btn.classList.add('playing');
+        }
+
+        const stepMs = (60000 / score.bpm) / 4;
+
+        const tick = () => {
+            if (!this.isPlaying) return;
+            document.querySelectorAll('.grid-cell.current-step').forEach(el => el.classList.remove('current-step'));
+            for (let t = 0; t < 4; t++) {
+                const cell = document.getElementById(`cell-${t}-${this.curStep}`);
+                if (cell) cell.classList.add('current-step');
+                const stp = this.currentScore.tracks[t][this.curStep];
+                if (stp && stp.active) {
+                    this.playNote(t, stp.note, stp.vel, stp.dur);
+                }
+            }
+            this.curStep = (this.curStep + 1) % STEPS;
+            this.timer = setTimeout(tick, stepMs);
+        };
+        tick();
+    },
+
+    stopPlayback() {
+        this.isPlaying = false;
+        clearTimeout(this.timer);
+        document.querySelectorAll('.grid-cell.current-step').forEach(el => el.classList.remove('current-step'));
+        const btn = document.getElementById('score-play-btn');
+        if (btn) {
+            btn.textContent = '▶ Play Score';
+            btn.classList.remove('playing');
+        }
+    }
+};
+
+// ================= Ambient Background Audio =================
+const AmbientAudio = {
+    ctx: null, master: null, padGain: null, muted: false,
+    chords: [
+        [146.83, 220.00, 261.63, 329.63],
+        [130.81, 196.00, 261.63, 329.63],
+        [110.00, 164.81, 220.00, 261.63],
+        [123.47, 185.00, 220.00, 293.66]
+    ],
+    melodyNotes: [293.66, 329.63, 349.23, 392.00, 440.00, 523.25, 587.33, 659.25],
+    curChordIdx: 0,
+    ambientTimer: null,
+    arpTimer: null,
+
+    ensure() {
+        if (!this.ctx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return false;
+            this.ctx = new AC();
+            this.master = this.ctx.createGain();
+            this.master.gain.setValueAtTime(0.85, this.ctx.currentTime);
+            this.filter = this.ctx.createBiquadFilter();
+            this.filter.type = 'lowpass';
+            this.filter.frequency.setValueAtTime(2200, this.ctx.currentTime);
+            this.padGain = this.ctx.createGain();
+            this.padGain.gain.setValueAtTime(0.45, this.ctx.currentTime);
+            this.padGain.connect(this.filter);
+            this.filter.connect(this.master);
+            this.master.connect(this.ctx.destination);
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        return true;
+    },
+
+    playTone(freq, delay, dur, vol, type = 'sine') {
+        if (!this.ensure() || this.muted) return;
+        const t0 = this.ctx.currentTime + delay;
+        const o = this.ctx.createOscillator(), gn = this.ctx.createGain();
+        o.type = type; o.frequency.setValueAtTime(freq, t0);
+        gn.gain.setValueAtTime(0.0001, t0);
+        gn.gain.linearRampToValueAtTime(vol, t0 + dur * 0.25);
+        gn.gain.linearRampToValueAtTime(0.0001, t0 + dur);
+        o.connect(gn); gn.connect(this.padGain);
+        o.start(t0); o.stop(t0 + dur + 0.1);
+    },
+
+    startBackground() {
+        if (!this.ensure() || this.muted) return;
+        if (this.ambientTimer) return;
+        const loopPad = () => {
+            if (this.muted) return;
+            const chord = this.chords[this.curChordIdx % this.chords.length];
+            this.curChordIdx++;
+            chord.forEach(f => {
+                this.playTone(f, 0, 5.8, 0.18, 'triangle');
+                this.playTone(f * 0.5, 0, 5.8, 0.12, 'sine');
+            });
+            this.ambientTimer = setTimeout(loopPad, 5000);
+        };
+        const loopArp = () => {
+            if (this.muted) return;
+            if (Math.random() < 0.9) {
+                const note = this.melodyNotes[Math.floor(Math.random() * this.melodyNotes.length)];
+                this.playTone(note, 0, 2.5, 0.14, 'sine');
+            }
+            this.arpTimer = setTimeout(loopArp, 1000 + Math.random() * 1500);
+        };
+        loopPad(); loopArp();
+    },
+
+    ding() {
+        if (!this.ensure() || this.muted) return;
+        const t0 = this.ctx.currentTime;
+        const o = this.ctx.createOscillator(), gn = this.ctx.createGain();
+        o.type = 'sine'; o.frequency.setValueAtTime(880, t0);
+        gn.gain.setValueAtTime(0.40, t0);
+        gn.exponentialRampToValueAtTime(0.0001, t0 + 1.8);
+        o.connect(gn); gn.connect(this.master);
+        o.start(t0); o.stop(t0 + 1.9);
+    },
+
+    toggle() {
+        this.muted = !this.muted;
+        if (this.muted) {
+            clearTimeout(this.ambientTimer); clearTimeout(this.arpTimer);
+            this.ambientTimer = null; this.arpTimer = null;
+            if (this.master) this.master.gain.setValueAtTime(0, this.ctx.currentTime);
+        } else {
+            if (this.master) this.master.gain.setValueAtTime(0.85, this.ctx.currentTime);
+            this.startBackground();
+        }
+        document.getElementById('music-btn').textContent = this.muted ? '♪ Ambient: off' : '♪ Ambient: on';
+    }
+};
+
+// ================= Full Procedural Textures & Materials =================
+function mkTex(sz, fn) {
+    const c = document.createElement('canvas');
+    c.width = c.height = sz;
+    fn(c.getContext('2d'), sz, sz);
+    const t = new THREE.CanvasTexture(c);
+    t.encoding = THREE.sRGBEncoding;
+    return t;
+}
+
+let M = {}, G = {};
+const BOOK_COLORS = [0x8b0000, 0x1f3a8b, 0x1f6b2e, 0x4a2c8b, 0x8b4513, 0x8b7300, 0x0f6b6b, 0x8b0f45, 0x2f4f4f, 0x5c1010];
+let bookMats = [];
+const bookGeoCache = {};
+const planeGeoCache = {};
+const boxGeoCache = {};
+
+function bookGeo(bw, bh, bd) {
+    const k = bw.toFixed(3) + '|' + bh.toFixed(3) + '|' + bd.toFixed(3);
+    if (!bookGeoCache[k]) bookGeoCache[k] = new THREE.BoxGeometry(bw, bh, bd);
+    return bookGeoCache[k];
+}
+function planeGeo(w, h) {
+    const k = w.toFixed(2) + 'x' + h.toFixed(2);
+    if (!planeGeoCache[k]) planeGeoCache[k] = new THREE.PlaneGeometry(w, h);
+    return planeGeoCache[k];
+}
+function boxGeo(w, h, d) {
+    const k = w.toFixed(2) + 'x' + h.toFixed(2) + 'x' + d.toFixed(2);
+    if (!boxGeoCache[k]) boxGeoCache[k] = new THREE.BoxGeometry(w, h, d);
+    return boxGeoCache[k];
+}
+
+function initShared() {
+    const floorTex = mkTex(512, (x, w, h) => {
+        x.fillStyle = '#c8a028'; x.fillRect(0, 0, w, h);
+        const T = 128;
+        for (let ty = 0; ty < h; ty += T) {
+            for (let tx = 0; tx < w; tx += T) {
+                const alt = ((tx + ty) / T) % 2 === 0;
+                x.fillStyle = alt ? '#a98822' : '#96741c';
+                x.fillRect(tx + 2, ty + 2, T - 4, T - 4);
+                for (let i = 0; i < 26; i++) {
+                    x.strokeStyle = `rgba(255,240,200,${0.05 + Math.random() * 0.08})`;
+                    x.lineWidth = 1;
+                    const vx = tx + Math.random() * T, vy = ty + Math.random() * T;
+                    x.beginPath(); x.moveTo(vx, vy);
+                    x.lineTo(vx + (Math.random() - 0.5) * 40, vy + (Math.random() - 0.5) * 40); x.stroke();
+                }
+                x.fillStyle = '#7a1f1f';
+                x.save(); x.translate(tx, ty); x.rotate(Math.PI / 4);
+                x.fillRect(-9, -9, 18, 18); x.restore();
+                x.strokeStyle = '#6e5600'; x.lineWidth = 3;
+                x.strokeRect(tx + 1.5, ty + 1.5, T - 3, T - 3);
+            }
+        }
+    });
+    floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
+    floorTex.repeat.set(2, 2);
+
+    const wallTex = mkTex(256, (x, w, h) => {
+        x.fillStyle = '#d9c9ab'; x.fillRect(0, 0, w, h);
+        let y = 0, off = false;
+        for (let r = 0; r < 8; r++) {
+            const ro = off ? 32 : 0;
+            for (let c = 0; c < 4; c++) {
+                x.strokeStyle = `rgba(145,125,105,${0.4 + Math.random() * 0.2})`;
+                x.strokeRect(ro + c * 64, y, 64, 32);
+            }
+            y += 32; off = !off;
+        }
+        for (let i = 0; i < 250; i++) {
+            x.fillStyle = `rgba(120,100,85,${Math.random() * 0.12})`;
+            x.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+        }
+    });
+
+    const bannerTex = (() => {
+        const c = document.createElement('canvas');
+        c.width = 128; c.height = 256;
+        const x = c.getContext('2d');
+        x.fillStyle = '#5c1414'; x.fillRect(0, 0, 128, 256);
+        x.strokeStyle = '#c9a227'; x.lineWidth = 5; x.strokeRect(8, 8, 112, 240);
+        x.fillStyle = '#ffd700'; x.beginPath(); x.arc(64, 88, 24, 0, Math.PI * 2); x.fill();
+        return new THREE.CanvasTexture(c);
+    })();
+
+    const stoneTex = mkTex(128, (x, w, h) => {
+        x.fillStyle = '#8a7154'; x.fillRect(0, 0, w, h);
+        x.fillStyle = 'rgba(50,40,28,0.5)';
+        for (let py = 32; py < h; py += 32) x.fillRect(0, py, w, 2);
+    });
+
+    const stairTex = mkTex(256, (x, w, h) => {
+        x.fillStyle = '#7b5733'; x.fillRect(0, 0, w, h);
+        for (let py = 0; py < h; py += 64) {
+            x.fillStyle = 'rgba(40,25,12,0.55)'; x.fillRect(0, py, w, 3);
+        }
+    });
+    stairTex.wrapS = stairTex.wrapT = THREE.RepeatWrapping;
+
+    const doorTex = mkTex(256, (x, w, h) => {
+        x.fillStyle = '#6b4423'; x.fillRect(0, 0, w, h);
+        x.strokeStyle = '#c9a227'; x.lineWidth = 10; x.strokeRect(10, 10, w - 20, h - 20);
+        x.fillStyle = '#4e2f16'; x.fillRect(28, 28, w - 56, h * 0.42);
+        x.fillRect(28, h * 0.55, w - 56, h * 0.40);
+        x.fillStyle = '#c9a227'; x.beginPath(); x.arc(w - 38, h * 0.5, 9, 0, Math.PI * 2); x.fill();
+    });
+    doorTex.wrapS = doorTex.wrapT = THREE.RepeatWrapping;
+
+    M.floor = new THREE.MeshLambertMaterial({ map: floorTex });
+    M.wall = new THREE.MeshLambertMaterial({ map: wallTex });
+    M.ceil = new THREE.MeshLambertMaterial({ color: 0x4a3620 });
+    M.shelf = new THREE.MeshLambertMaterial({ color: 0x5a3a1a });
+    M.edge = new THREE.MeshLambertMaterial({ color: 0x2e1c0a });
+    M.step = new THREE.MeshLambertMaterial({ map: stairTex });
+    M.tread = new THREE.MeshLambertMaterial({ color: 0xd9b787 });
+    M.steel = new THREE.MeshLambertMaterial({ color: 0x1b1b21, side: THREE.DoubleSide });
+    M.cable = new THREE.MeshLambertMaterial({ color: 0x8f96a3, side: THREE.DoubleSide });
+    M.stone = new THREE.MeshLambertMaterial({ map: stoneTex });
+    M.stoneDark = new THREE.MeshLambertMaterial({ color: 0x8c7854 });
+    M.wood = new THREE.MeshLambertMaterial({ color: 0x5c3317 });
+    M.woodDark = new THREE.MeshLambertMaterial({ color: 0x3a1f0a });
+    M.cabWood = new THREE.MeshLambertMaterial({ color: 0x4a2410 });
+    M.brass = new THREE.MeshLambertMaterial({ color: 0xa87f2e });
+    M.carpet = new THREE.MeshLambertMaterial({ color: 0x7a1f1f });
+    M.carpetEdge = new THREE.MeshLambertMaterial({ color: 0xc9a227 });
+    M.flame = new THREE.MeshBasicMaterial({ color: 0xff9a2a });
+    M.skylight = new THREE.MeshBasicMaterial({ color: 0xfff3cf });
+    M.bracket = new THREE.MeshLambertMaterial({ color: 0x3a2a18 });
+    M.callBtn = new THREE.MeshBasicMaterial({ color: 0xffc44d });
+    M.doorWood = new THREE.MeshLambertMaterial({ map: doorTex });
+    M.banner = new THREE.MeshLambertMaterial({ map: bannerTex });
+    M.scroll = new THREE.MeshLambertMaterial({ color: 0xd9c9a8 });
+
+    const signCanvas = document.createElement('canvas');
+    signCanvas.width = 512; signCanvas.height = 128;
+    const sx = signCanvas.getContext('2d');
+    sx.fillStyle = '#170c04'; sx.fillRect(0, 0, 512, 128);
+    sx.strokeStyle = '#c9a227'; sx.lineWidth = 6; sx.strokeRect(8, 8, 496, 112);
+    sx.fillStyle = '#ffd700'; sx.font = 'bold 52px Georgia'; sx.textAlign = 'center'; sx.textBaseline = 'middle';
+    sx.fillText('▼ ELEVATOR ▲', 256, 66);
+    const signTex = new THREE.CanvasTexture(signCanvas);
+    signTex.encoding = THREE.sRGBEncoding;
+    M.sign = new THREE.MeshBasicMaterial({ map: signTex });
+
+    bookMats = BOOK_COLORS.map(c => new THREE.MeshLambertMaterial({ color: c }));
+
+    G.back = new THREE.BoxGeometry(3.5, 4.6, 0.1);
+    G.side = new THREE.BoxGeometry(0.08, 4.6, 0.5);
+    G.plank = new THREE.BoxGeometry(3.4, 0.06, 0.45);
+    G.trim = new THREE.BoxGeometry(3.6, 0.1, 0.6);
+    G.colBase = new THREE.CylinderGeometry(0.3, 0.36, 0.35, 10);
+    G.colShaft = new THREE.CylinderGeometry(0.2, 0.26, 5.3, 10);
+    G.colCap = new THREE.CylinderGeometry(0.32, 0.2, 0.28, 10);
+    G.pole = new THREE.CylinderGeometry(0.045, 0.07, 2.6, 8);
+    G.bowl = new THREE.CylinderGeometry(0.17, 0.09, 0.14, 10);
+    G.flame = new THREE.SphereGeometry(0.09, 8, 8);
+    G.finial = new THREE.SphereGeometry(0.09, 8, 8);
+    G.baseboard = new THREE.BoxGeometry(16, 0.22, 0.07);
+    G.wainscot = new THREE.BoxGeometry(16, 0.85, 0.06);
+    G.chairRail = new THREE.BoxGeometry(16, 0.09, 0.1);
+    G.ring = new THREE.TorusGeometry(0.9, 0.06, 8, 24);
+    G.rod = new THREE.CylinderGeometry(0.03, 0.03, 1.0, 6);
+    G.beam = new THREE.BoxGeometry(16, 0.14, 0.28);
+    G.beamCross = new THREE.BoxGeometry(0.28, 0.14, 16);
+    G.rugBase = new THREE.BoxGeometry(3.5, 0.04, 11.3);
+    G.rugTop = new THREE.BoxGeometry(3.2, 0.05, 11);
+    G.pedestal = new THREE.BoxGeometry(0.5, 1.1, 0.5);
+    G.bust = new THREE.SphereGeometry(0.22, 10, 10);
+    G.bustBase = new THREE.CylinderGeometry(0.14, 0.18, 0.18, 8);
+    G.scrollGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.7, 8);
+    G.bookHalf = new THREE.BoxGeometry(0.3, 0.025, 0.4);
+}
+
+// ================= Level Construction =================
+const CW = 16, CH = 6, HALF = CW / 2;
+const FX0 = 4.45, FX1 = 6.35, FCX = (FX0 + FX1) / 2;
+const VOID_X0 = 6.35, VOID_X1 = 7.87;
+const SN = 12, SRUN = 0.75, SRISE = CH / SN;
+const SZ0 = -4.0, SZ1 = SZ0 + SN * SRUN, SZT = SZ1 + 0.03;
+const HOLE_S = { x0: FX0 + 0.03, x1: FX1 - 0.03, z0: SZ0 + 0.03, z1: SZ1 - 0.01 };
+const ELEV = { x0: -7.25, x1: -4.75, z0: -6.35, z1: -2.85, cx: -6.0, cz: -4.6 };
+const CAB = { w: 2.0, d: 2.6, h: 4.5, doorW: 1.6 };
+const PLAY = HALF - 1.3;
+const EYE = 1.7;
+const WALK = 4.6, RUN = 7.6;
+
+let baseTrue = 0n;
+let scene, camera, renderer, clock;
+let yaw = 0, pitch = 0, vy = 0, onGround = true;
+let locked = false, bookOpen = false, uiOpen = false, gameStarted = false;
+let playerY = EYE, eyeH = EYE, safeTrue = 0n;
+let pos = new THREE.Vector3(-1, 0, -2);
+
+const levels = new Map();
+const booksByLevel = new Map();
+const doorsByLevel = new Map();
+const flames = [];
+const dusties = [];
+let nearBook = null, nearElev = false;
+let lastRay = 0;
+const keys = {};
+
+const elev = { busy: false, phase: 'idle', from: 0n, to: 0n, cabinY: 0, cabinLevel: 0n, doorT: 1, pt: 0 };
+let cabinG = null, cabinDoors = null;
+let pendingHighlight = null, bookHighlight = null;
+let highlightMat = null, highlightLineMat = null;
+let currentLoadedScore = null;
+
+function slab(g, w, d, x, y, z, faceUp) {
+    const top = faceUp ? M.floor : M.ceil;
+    const mats = faceUp ? [M.edge, M.edge, top, M.edge, M.edge, M.edge] : [M.edge, M.edge, M.edge, top, M.edge, M.edge];
+    const m = new THREE.Mesh(boxGeo(w, 0.15, d), mats);
+    m.position.set(x, faceUp ? y - 0.075 : y - 0.225, z);
+    g.add(m);
+}
+
+function buildSlabs(g, y, faceUp, holes) {
+    const xs = [-HALF];
+    holes.forEach(h => { xs.push(h.x0, h.x1); });
+    xs.push(HALF);
+    xs.sort((a, b) => a - b);
+    for (let i = 0; i < xs.length - 1; i++) {
+        const xa = xs[i], xb = xs[i + 1];
+        if (xb - xa < 0.01) continue;
+        const ov = holes.filter(h => h.x0 < xb - 1e-4 && h.x1 > xa + 1e-4);
+        if (!ov.length) {
+            slab(g, xb - xa, CW, (xa + xb) / 2, y, 0, faceUp);
+            continue;
+        }
+        const zs = [-HALF];
+        ov.forEach(h => { zs.push(h.z0, h.z1); });
+        zs.push(HALF);
+        zs.sort((a, b) => a - b);
+        for (let j = 0; j < zs.length - 1; j++) {
+            const za = zs[j], zb = zs[j + 1];
+            if (zb - za < 0.01) continue;
+            const zm = (za + zb) / 2;
+            const inHole = ov.some(h => zm > h.z0 && zm < h.z1);
+            if (!inHole) slab(g, xb - xa, zb - za, (xa + xb) / 2, y, zm, faceUp);
+        }
+    }
+}
+
+function makeDoorPair(parent, x, y, zc, thick, mat, slide) {
+    const geo = new THREE.BoxGeometry(thick, 4.46, 0.9);
+    const dm = mat.clone();
+    const l = new THREE.Mesh(geo, dm), r = new THREE.Mesh(geo, dm);
+    l.position.set(x, y, zc - 0.45); r.position.set(x, y, zc + 0.45);
+    parent.add(l); parent.add(r);
+    return { l, r, zc, slide: (slide === undefined ? 0.38 : slide) };
+}
+
+function setDoorPair(p, t) {
+    p.l.position.z = p.zc - 0.45 - t * p.slide;
+    p.r.position.z = p.zc + 0.45 + t * p.slide;
+}
+
+function makePlate(levelBigInt) {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 64;
+    const x = c.getContext('2d');
+    x.fillStyle = '#170c04'; x.fillRect(0, 0, 256, 64);
+    x.strokeStyle = '#c9a227'; x.lineWidth = 4; x.strokeRect(4, 4, 248, 56);
+    const label = formatFloorDisplay(levelBigInt).toUpperCase();
+    x.fillStyle = '#ffd700'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    let size = 26;
+    x.font = 'bold ' + size + 'px Georgia';
+    while (size > 8 && x.measureText(label).width > 256 - 28) {
+        size -= 2;
+        x.font = 'bold ' + size + 'px Georgia';
+    }
+    x.fillText(label, 128, 34);
+    const pt = new THREE.CanvasTexture(c);
+    pt.encoding = THREE.sRGBEncoding;
+    return pt;
+}
+
+function buildLevel(levelBigInt) {
+    if (levels.has(levelBigInt)) return;
+    const g = new THREE.Group();
+    const relY = Number(levelBigInt - baseTrue) * CH;
+    g.position.set(0, relY, 0);
+    g.frustumCulled = false;
+    levels.set(levelBigInt, g);
+    booksByLevel.set(levelBigInt, []);
+
+    const holes = [HOLE_S, ELEV];
+    buildSlabs(g, 0, true, holes);
+    buildSlabs(g, CH, false, holes);
+
+    const wallN = new THREE.Mesh(planeGeo(CW, CH), M.wall); wallN.position.set(0, CH / 2, -HALF); g.add(wallN);
+    const wallS = new THREE.Mesh(planeGeo(CW, CH), M.wall); wallS.position.set(0, CH / 2, HALF); wallS.rotation.y = Math.PI; g.add(wallS);
+    const wallW = new THREE.Mesh(planeGeo(CW, CH), M.wall); wallW.position.set(-HALF, CH / 2, 0); wallW.rotation.y = Math.PI / 2; g.add(wallW);
+    const wallE = new THREE.Mesh(planeGeo(CW, CH), M.wall); wallE.position.set(HALF, CH / 2, 0); wallE.rotation.y = -Math.PI / 2; g.add(wallE);
+
+    [[0, -HALF + 0.05, 0], [0, HALF - 0.05, Math.PI], [-HALF + 0.05, 0, Math.PI / 2], [HALF - 0.05, 0, -Math.PI / 2]].forEach(([x, z, ry]) => {
+        const b = new THREE.Mesh(G.baseboard, M.edge); b.position.set(x, 0.11, z); b.rotation.y = ry; g.add(b);
+        const wp = new THREE.Mesh(G.wainscot, M.wood); wp.position.set(x * 0.995, 0.62, z * 0.995); wp.rotation.y = ry; g.add(wp);
+        const cr = new THREE.Mesh(G.chairRail, M.edge); cr.position.set(x * 0.993, 1.08, z * 0.993); cr.rotation.y = ry; g.add(cr);
+    });
+
+    [[-2.3, -HALF + 0.09, 0], [2.3, -HALF + 0.09, 0], [-2.3, HALF - 0.09, Math.PI], [2.3, HALF - 0.09, Math.PI]].forEach(([x, z, ry]) => {
+        const bn = new THREE.Mesh(planeGeo(1.0, 2.4), M.banner);
+        bn.position.set(x, 3.1, z); bn.rotation.y = ry; g.add(bn);
+    });
+
+    const ce = new THREE.Mesh(G.rugBase, M.carpetEdge); ce.position.set(-1, 0.02, 0); g.add(ce);
+    const ca = new THREE.Mesh(G.rugTop, M.carpet); ca.position.set(-1, 0.025, 0); g.add(ca);
+
+    const shelfDefs = [
+        { x: -3.0, z: -(HALF - 0.55), ry: 0 },
+        { x: 0.9, z: -(HALF - 0.55), ry: 0 },
+        { x: 4.6, z: -(HALF - 0.55), ry: 0 },
+        { x: -4.6, z: (HALF - 0.55), ry: Math.PI },
+        { x: 0, z: (HALF - 0.55), ry: Math.PI },
+        { x: 4.6, z: (HALF - 0.55), ry: Math.PI },
+        { x: -(HALF - 0.55), z: 0, ry: Math.PI / 2 },
+        { x: -(HALF - 0.55), z: 4.6, ry: Math.PI / 2 }
+    ];
+
+    shelfDefs.forEach((s, shelfIdx) => {
+        const shelf = new THREE.Group();
+        shelf.position.set(s.x, 0, s.z);
+        shelf.rotation.y = s.ry;
+        g.add(shelf);
+
+        const back = new THREE.Mesh(G.back, M.shelf); back.position.set(0, 2.45, -0.22); shelf.add(back);
+        [-1.71, 1.71].forEach(xo => {
+            const side = new THREE.Mesh(G.side, M.shelf); side.position.set(xo, 2.45, 0); shelf.add(side);
+        });
+        const trim = new THREE.Mesh(G.trim, M.edge); trim.position.set(0, 4.78, 0); shelf.add(trim);
+        const kick = new THREE.Mesh(G.trim, M.edge); kick.position.set(0, 0.12, 0); shelf.add(kick);
+
+        for (let r = 0; r < 3; r++) {
+            const sy = 0.75 + r * 1.25;
+            const plank = new THREE.Mesh(G.plank, M.edge); plank.position.set(0, sy, 0); shelf.add(plank);
+            for (let b = 0; b < 10; b++) {
+                const bw = 0.16 + ((b * 3 + r) % 4) * 0.03;
+                const bh = 0.62 + ((b * 2 + r) % 4) * 0.07;
+                const bd = 0.30 + (b % 3) * 0.03;
+                const colIdx = (shelfIdx * 30 + r * 10 + b) % bookMats.length;
+                const book = new THREE.Mesh(bookGeo(bw, bh, bd), bookMats[colIdx]);
+                book.position.set((b - 4.5) * 0.31, sy + 0.03 + bh / 2 - 0.005, 0.03);
+                if (((b + r * 3) % 11) === 0) book.rotation.z = 0.06;
+                book.userData = { level: levelBigInt, shelfIdx, rowIdx: r, bookIdx: b };
+                shelf.add(book);
+                booksByLevel.get(levelBigInt).push(book);
+            }
+        }
+    });
+
+    [[-4.6, 4.6], [3.6, -4.6], [3.6, 4.6]].forEach(([px, pz]) => {
+        const b = new THREE.Mesh(G.colBase, M.stoneDark); b.position.set(px, 0.175, pz); g.add(b);
+        const c = new THREE.Mesh(G.colShaft, M.stone); c.position.set(px, 2.65, pz); g.add(c);
+        const cp = new THREE.Mesh(G.colCap, M.stoneDark); cp.position.set(px, CH - 0.14, pz); g.add(cp);
+    });
+
+    [[1.8, 2.5], [1.8, -2.5]].forEach(([px, pz]) => {
+        const ped = new THREE.Mesh(G.pedestal, M.stoneDark); ped.position.set(px, 0.55, pz); g.add(ped);
+        const nb = new THREE.Mesh(G.bustBase, M.stone); nb.position.set(px, 1.19, pz); g.add(nb);
+        const bu = new THREE.Mesh(G.bust, M.stone); bu.position.set(px, 1.5, pz); g.add(bu);
+    });
+
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 0.1, 20), M.wood);
+    top.position.set(-1, 1.0, 0); g.add(top);
+    [[-0.4, -0.4], [-0.4, 0.4], [0.4, -0.4], [0.4, 0.4]].forEach(([ox, oz]) => {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.0, 8), M.woodDark);
+        leg.position.set(-1 + ox, 0.5, oz); g.add(leg);
+    });
+    [[-1, 2.2], [-1, -2.2]].forEach(([sx, sz]) => {
+        const st = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.45, 12), M.wood);
+        st.position.set(sx, 0.225, sz); g.add(st);
+    });
+    [[-0.25], [0.25]].forEach(([oz]) => {
+        const sc = new THREE.Mesh(G.scrollGeo, M.scroll);
+        sc.rotation.z = Math.PI / 2; sc.position.set(-1.3, 1.11, oz); g.add(sc);
+    });
+    [-1, 1].forEach(s => {
+        const half = new THREE.Mesh(G.bookHalf, M.scroll);
+        half.position.set(-0.6 + s * 0.14, 1.08, 0.55); half.rotation.z = s * -0.22; g.add(half);
+    });
+
+    const ring = new THREE.Mesh(G.ring, M.brass); ring.rotation.x = Math.PI / 2; ring.position.set(-1, 4.55, 0); g.add(ring);
+    const rod = new THREE.Mesh(G.rod, M.bracket); rod.position.set(-1, 5.3, 0); rod.scale.y = 1.4; g.add(rod);
+    const finial = new THREE.Mesh(G.finial, M.brass); finial.position.set(-1, 4.42, 0); g.add(finial);
+
+    [-4.5, 0, 4.5].forEach(z => {
+        const bm = new THREE.Mesh(G.beam, M.woodDark); bm.position.set(0, CH - 0.16, z); g.add(bm);
+    });
+    [-4.5, 0, 4.5].forEach(x => {
+        const bm = new THREE.Mesh(G.beamCross, M.woodDark); bm.position.set(x, CH - 0.16, 0); g.add(bm);
+    });
+
+    [[-6.9, -6.9], [6.9, -6.9], [-6.9, 6.9], [6.9, 6.9]].forEach(([tx, tz], i) => {
+        const pole = new THREE.Mesh(G.pole, M.bracket); pole.position.set(tx, 1.3, tz); g.add(pole);
+        const bowl = new THREE.Mesh(G.bowl, M.brass); bowl.position.set(tx, 2.66, tz); g.add(bowl);
+        const fl = new THREE.Mesh(G.flame, M.flame); fl.position.set(tx, 2.82, tz); g.add(fl);
+        flames.push({ mesh: fl, phase: Number(levelBigInt % 100n) * 2.3 + i * 1.3, level: levelBigInt });
+    });
+    const pl1 = new THREE.PointLight(0xffb45e, 0.22, 10, 2); pl1.position.set(-3, 4.4, 0); g.add(pl1);
+    const pl2 = new THREE.PointLight(0xffb45e, 0.22, 10, 2); pl2.position.set(4, 4.4, 0); g.add(pl2);
+
+    const dn = 100;
+    const dp = new Float32Array(dn * 3);
+    for (let i = 0; i < dn; i++) {
+        dp[i * 3] = (Math.random() - 0.5) * 14;
+        dp[i * 3 + 1] = 0.3 + Math.random() * 5;
+        dp[i * 3 + 2] = (Math.random() - 0.5) * 14;
+    }
+    const dg = new THREE.BufferGeometry();
+    dg.setAttribute('position', new THREE.BufferAttribute(dp, 3));
+    const dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: 0xffe6a8, size: 0.035, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false }));
+    g.add(dust);
+    dusties.push({ pts: dust, level: levelBigInt });
+
+    const TREAD_T = 0.14, TREAD_D = SRUN + 0.08;
+    const treadGeo = boxGeo(FX1 - FX0, TREAD_T, TREAD_D);
+    const topTreadGeo = boxGeo(FX1 - FX0, TREAD_T, TREAD_D - 0.06);
+    for (let i = 0; i < SN; i++) {
+        const top = (i + 1) * SRISE;
+        const isTop = i === SN - 1;
+        const zC = SZ0 + i * SRUN + SRUN / 2 - (isTop ? 0.04 : 0);
+        const geo = isTop ? topTreadGeo : treadGeo;
+        const yOff = isTop ? 0.015 : 0;
+        const tread = new THREE.Mesh(geo, M.tread);
+        tread.position.set(FCX, top - TREAD_T / 2 - yOff, zC);
+        tread.frustumCulled = false;
+        g.add(tread);
+    }
+    const runLen = SN * SRUN;
+    const spineLen = Math.hypot(runLen, CH) + 0.7;
+    const spine = new THREE.Mesh(boxGeo(0.3, 0.35, spineLen), M.steel);
+    spine.position.set(FCX, CH / 2 - 0.34, (SZ0 + SZ1) / 2 + 0.05);
+    spine.rotation.x = -Math.atan2(CH, runLen);
+    spine.frustumCulled = false;
+    g.add(spine);
+
+    const foot = new THREE.Mesh(boxGeo(0.6, 0.12, 0.9), M.steel);
+    foot.position.set(FCX, 0.06, SZ0 + 0.25); foot.frustumCulled = false; g.add(foot);
+    const shoe = new THREE.Mesh(boxGeo(0.3, 0.5, 0.3), M.steel);
+    shoe.position.set(FCX, 0.3, SZ0 + 0.25); shoe.frustumCulled = false; g.add(shoe);
+    const anchor = new THREE.Mesh(boxGeo(0.4, 0.3, 0.5), M.steel);
+    anchor.position.set(FCX, CH - 0.2, SZ1 - 0.1); anchor.frustumCulled = false; g.add(anchor);
+
+    const railXs = [FX0 + 0.1, FX1 - 0.1];
+    const postGeo = boxGeo(0.08, 1.0, 0.08);
+    for (let i = 0; i < SN; i++) {
+        const top = (i + 1) * SRISE;
+        const pZ = SZ0 + i * SRUN + SRUN / 2 + 0.18;
+        railXs.forEach(px => {
+            const post = new THREE.Mesh(postGeo, M.steel);
+            post.position.set(px, top + 0.5, pZ);
+            post.frustumCulled = false;
+            g.add(post);
+        });
+    }
+    const rZA = SZ0 + 0.15, rZB = SZ1 + 0.2;
+    const rYA = ((rZA - SZ0) / runLen) * CH + 1.02;
+    const rYB = ((rZB - SZ0) / runLen) * CH + 1.02;
+    const rLen = Math.hypot(rZB - rZA, rYB - rYA);
+    const rAng = Math.atan2(rYB - rYA, rZB - rZA);
+    railXs.forEach(px => {
+        const rail = new THREE.Mesh(boxGeo(0.22, 0.10, rLen), M.steel);
+        rail.position.set(px, (rYA + rYB) / 2, (rZA + rZB) / 2);
+        rail.rotation.x = -rAng;
+        rail.frustumCulled = false;
+        g.add(rail);
+        [0.38, 0.68].forEach(h => {
+            const cYA = ((rZA - SZ0) / runLen) * CH + h;
+            const cYB = ((rZB - SZ0) / runLen) * CH + h;
+            const cable = new THREE.Mesh(boxGeo(0.034, 0.034, rLen), M.cable);
+            cable.position.set(px, (cYA + cYB) / 2, (rZA + rZB) / 2);
+            cable.rotation.x = -rAng;
+            cable.frustumCulled = false;
+            g.add(cable);
+        });
+    });
+
+    const landY = CH;
+    const landPostGeo = boxGeo(0.08, 1.0, 0.08);
+    {
+        const lz0 = SZ0 - 0.28, lz1 = SZ1 + 0.28;
+        [FX0 - 0.12, FX1 + 0.12].forEach(px => {
+            for (let k = 0; k <= 4; k++) {
+                const lz = lz0 + (lz1 - lz0) * (k / 4);
+                const lp = new THREE.Mesh(landPostGeo, M.steel);
+                lp.position.set(px, landY + 0.5, lz);
+                lp.frustumCulled = false;
+                g.add(lp);
+            }
+            const lRail = new THREE.Mesh(boxGeo(0.22, 0.10, lz1 - lz0), M.steel);
+            lRail.position.set(px, landY + 1.02, (lz0 + lz1) / 2);
+            lRail.frustumCulled = false;
+            g.add(lRail);
+        });
+    }
+
+    const ex0 = ELEV.x0, ex1 = ELEV.x1, ez0 = ELEV.z0, ez1 = ELEV.z1;
+    const doorZ0 = ELEV.cz - CAB.doorW / 2, doorZ1 = ELEV.cz + CAB.doorW / 2;
+    const shaftMat = M.cabWood;
+    const WB = -0.20, WT = CH - 0.02, WH = WT - WB, WY = (WT + WB) / 2;
+
+    const backW = new THREE.Mesh(new THREE.BoxGeometry(0.20, WH, (ez1 - ez0) + 0.44), shaftMat);
+    backW.position.set(ex0 - 0.01, WY, ELEV.cz); g.add(backW);
+    const sideX0 = ex0 - 0.20, sideX1 = ex1 + 0.20, sideXC = (sideX0 + sideX1) / 2;
+    [[ez0 - 0.01, 0], [ez1 + 0.01, 0]].forEach(([z]) => {
+        const sw = new THREE.Mesh(new THREE.BoxGeometry(sideX1 - sideX0, WH, 0.20), shaftMat);
+        sw.position.set(sideXC, WY, z); g.add(sw);
+    });
+
+    [[(ez0 - 0.01 + doorZ0 - 0.05) / 2, doorZ0 - 0.05 - (ez0 - 0.01)],
+     [(doorZ1 + 0.05 + ez1 + 0.01) / 2, (ez1 + 0.01) - (doorZ1 + 0.05)]].forEach(([z, w]) => {
+        const pil = new THREE.Mesh(new THREE.BoxGeometry(0.30, WH, w), shaftMat);
+        pil.position.set(ex1, WY, z); g.add(pil);
+    });
+
+    const header = new THREE.Mesh(new THREE.BoxGeometry(0.26, 1.68, ez1 - ez0), shaftMat);
+    header.position.set(ex1 + 0.035, 5.14, ELEV.cz); g.add(header);
+
+    const sill = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.16, 1.68), M.carpet);
+    sill.position.set(ex1 - 0.14, -0.06, ELEV.cz); g.add(sill);
+
+    const btn = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.12), M.callBtn.clone());
+    btn.position.set(ex1 + 0.188, 1.6, doorZ1 + 0.35); g.add(btn);
+
+    const sign = new THREE.Mesh(planeGeo(1.9, 0.48), M.sign);
+    sign.position.set(ex1 + 0.177, 5.20, ELEV.cz); sign.rotation.y = Math.PI / 2; g.add(sign);
+
+    const plateTex = makePlate(levelBigInt);
+    const plateMat = new THREE.MeshBasicMaterial({ map: plateTex });
+    const plate = new THREE.Mesh(planeGeo(1.4, 0.36), plateMat);
+    plate.position.set(ex1 + 0.177, 4.62, ELEV.cz); plate.rotation.y = Math.PI / 2; g.add(plate);
+    g.userData.plateTex = plateTex;
+    g.userData.plateMat = plateMat;
+
+    const pair = makeDoorPair(g, ex1 - 0.185, 2.255, ELEV.cz, 0.06, M.doorWood, 0.72);
+    setDoorPair(pair, (levelBigInt === elev.cabinLevel && elev.doorT > 0) ? elev.doorT : 0);
+    doorsByLevel.set(levelBigInt, pair);
+
+    scene.add(g);
+}
+
+function unloadLevel(levelBigInt) {
+    const g = levels.get(levelBigInt);
+    if (!g) return;
+    if (bookHighlight && bookHighlight.level === levelBigInt) clearHighlight();
+    scene.remove(g);
+    if (g.userData.plateTex) g.userData.plateTex.dispose();
+    if (g.userData.plateMat) g.userData.plateMat.dispose();
+    levels.delete(levelBigInt);
+    booksByLevel.delete(levelBigInt);
+    doorsByLevel.delete(levelBigInt);
+    for (let i = flames.length - 1; i >= 0; i--) if (flames[i].level === levelBigInt) flames.splice(i, 1);
+    for (let i = dusties.length - 1; i >= 0; i--) if (dusties[i].level === levelBigInt) dusties.splice(i, 1);
+}
+
+function buildCabin() {
+    cabinG = new THREE.Group();
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(2.02, 0.12, 2.62), M.woodDark);
+    floor.position.y = -0.06; cabinG.add(floor);
+    const rug = new THREE.Mesh(new THREE.BoxGeometry(CAB.w - 0.4, 0.03, CAB.d - 0.4), M.carpet);
+    rug.position.y = 0.02; cabinG.add(rug);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(2.02, 0.12, 2.62), M.cabWood);
+    roof.position.y = CAB.h + 0.06; cabinG.add(roof);
+    const lamp = new THREE.Mesh(planeGeo(1.2, 1.2), M.skylight);
+    lamp.rotation.x = Math.PI / 2; lamp.position.y = CAB.h - 0.015; cabinG.add(lamp);
+
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.10, 4.62, 2.44), M.cabWood);
+    back.position.set(-CAB.w / 2 + 0.02, 2.25, 0); cabinG.add(back);
+
+    [-1, 1].forEach(s => {
+        const side = new THREE.Mesh(new THREE.BoxGeometry(1.78, 4.62, 0.10), M.cabWood);
+        side.position.set(-0.13, 2.25, s * (CAB.d / 2 - 0.02)); cabinG.add(side);
+        const pil = new THREE.Mesh(new THREE.BoxGeometry(0.10, 4.62, 0.47), M.cabWood);
+        pil.position.set(CAB.w / 2 - 0.02, 2.25, s * (CAB.d / 2 - 0.215)); cabinG.add(pil);
+    });
+
+    cabinDoors = makeDoorPair(cabinG, CAB.w / 2 - 0.15, 2.255, 0, 0.06, M.doorWood, 0.72);
+    setDoorPair(cabinDoors, 1);
+    cabinG.position.set(ELEV.cx, elev.cabinY, ELEV.cz);
+    scene.add(cabinG);
+}
+
+// ================= Physics & Collisions =================
+function stairLift(z) {
+    if (z < SZ0 || z > SZT) return -1;
+    return Math.min(1, (z - SZ0) / (SZ1 - SZ0));
+}
+function inStairX(x) { return Math.abs(x - FCX) < 1.3; }
+function inHoleRect(h, x, z) { return x > h.x0 && x < h.x1 && z > h.z0 && z < h.z1; }
+function inCabinXZ(x, z) {
+    return Math.abs(x - ELEV.cx) < 1.30 && Math.abs(z - ELEV.cz) < 1.45;
+}
+function inShaft(x, z) { return inHoleRect(ELEV, x, z); }
+
+function elevSolidAt(x, z) {
+    const R = 0.25;
+    const OX0 = -7.46, OX1 = -4.55, OZ0 = -6.46, OZ1 = -2.74;
+    if (x < OX0 - R || x > OX1 + R || z < OZ0 - R || z > OZ1 + R) return false;
+    const feetY = playerY - EYE;
+    let inStorey = false, openHere = false;
+    for (const [L, g] of levels.entries()) {
+        const y0 = Number(L - baseTrue) * CH;
+        if (feetY < y0 - 1.0 || feetY > y0 + CH) continue;
+        inStorey = true;
+        if (L === elev.cabinLevel && elev.doorT >= 0.5) openHere = true;
+    }
+    if (!inStorey) return false;
+    if (openHere) {
+        const lx = x - ELEV.cx, lz = z - ELEV.cz;
+        const inInterior = (x > -6.93 + R && x < -5.20 && z > -5.83 + R && z < -3.37 - R);
+        const inCorridor = (x > -5.20 && x < OX1 + R && z > -5.40 + R && z < -3.80 - R);
+        if (inInterior || inCorridor) {
+            if (lx > 0.82 - R && lx < 0.88 + R && Math.abs(lz) > 0.72 - R && Math.abs(lz) < 1.62 + R) return true;
+            return false;
+        }
+        return true;
+    }
+    return true;
+}
+
+function groundHeight(x, z, feetY) {
+    const cands = [];
+    const curRel = Math.floor(feetY / CH);
+    for (let relL = curRel - 1; relL <= curRel + 1; relL++) {
+        const L = baseTrue + BigInt(relL);
+        if (!levels.has(L)) continue;
+        const h0 = relL * CH;
+        if (!inHoleRect(HOLE_S, x, z) && !inHoleRect(ELEV, x, z)) cands.push(h0);
+        if (!inHoleRect(ELEV, x, z) && inStairX(x)) {
+            const t = stairLift(z);
+            if (t >= 0) cands.push(h0 + t * CH);
+        }
+    }
+    if (inCabinXZ(x, z)) cands.push(elev.cabinY);
+    let best = -Infinity;
+    for (const h of cands) if (h <= feetY + 0.55 && h > best) best = h;
+    return best === -Infinity ? null : best;
+}
+
+// ================= Auto-Play on Inspect (Key E) =================
+function openBook(book) {
+    bookOpen = true;
+    document.exitPointerLock();
+    const d = book.userData;
+    const loc = getLoc(d.shelfIdx, d.rowIdx, d.bookIdx);
+    
+    const { score } = getBabelBookScore(d.level, d.shelfIdx, d.rowIdx, d.bookIdx);
+    currentLoadedScore = score;
+
+    const titleText = 'Score Codex — ' + d.level.toString().slice(-4) + '.' + d.shelfIdx + '.' + d.rowIdx + '.' + d.bookIdx;
+    document.getElementById('book-title').textContent = titleText;
+    document.getElementById('book-header-path').textContent = `floor_${d.level}_shelf_${d.shelfIdx}_vol_${d.bookIdx}_score.mid`;
+
+    const locHtml = `${formatFloorDisplay(d.level)}<br>${loc.wall}<br>${loc.shelf} · Book #${loc.pos}`;
+    document.getElementById('book-location').innerHTML = locHtml;
+
+    document.getElementById('book-stats').innerHTML = `
+        Tempo: ${score.bpm} BPM<br>
+        Key: ${score.rootKey} ${score.scaleName}<br>
+        Tracks: 4 (Piano, Strings, Bass, Lead)<br>
+        State: 2^4096 Feistel Reversible
+    `;
+
+    for (let t = 0; t < 4; t++) {
+        const grid = document.getElementById(`track-${t}`);
+        grid.innerHTML = '';
+        const classNames = ['active-piano', 'active-strings', 'active-bass', 'active-lead'];
+        for (let s = 0; s < STEPS; s++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.id = `cell-${t}-${s}`;
+            if (score.tracks[t][s] && score.tracks[t][s].active) {
+                cell.classList.add(classNames[t]);
+            }
+            grid.appendChild(cell);
+        }
+    }
+
+    document.getElementById('book-viewer').style.display = 'flex';
+    document.getElementById('prompt').style.display = 'none';
+
+    // AUTO-PLAY: Play score immediately upon opening without requiring button click
+    Synth.startPlayback(currentLoadedScore);
+}
+
+function closeBook() {
+    bookOpen = false;
+    Synth.stopPlayback();
+    document.getElementById('book-viewer').style.display = 'none';
+    if (!uiOpen && gameStarted) {
+        renderer.domElement.requestPointerLock();
+    }
+}
+
+function clearHighlight() {
+    if (!bookHighlight) return;
+    if (bookHighlight.mesh) {
+        bookHighlight.mesh.material = bookHighlight.prevMat;
+        if (bookHighlight.outline && bookHighlight.outline.parent) bookHighlight.outline.parent.remove(bookHighlight.outline);
+        if (bookHighlight.outline) bookHighlight.outline.geometry.dispose();
+    }
+    bookHighlight = null;
+}
+
+function applyHighlight(levelBigInt, shelfIdx, rowIdx, bookIdx, note) {
+    clearHighlight();
+    if (!levels.has(levelBigInt)) buildLevel(levelBigInt);
+    const list = booksByLevel.get(levelBigInt) || [];
+    const mesh = list.find(m => m.userData.shelfIdx === shelfIdx && m.userData.rowIdx === rowIdx && m.userData.bookIdx === bookIdx);
+    if (!mesh) return;
+
+    if (!highlightMat) {
+        highlightMat = new THREE.MeshLambertMaterial({ color: 0xffd700, emissive: 0xff9500, emissiveIntensity: 1 });
+        highlightLineMat = new THREE.LineBasicMaterial({ color: 0xffe45e });
+    }
+    const outline = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), highlightLineMat);
+    outline.position.copy(mesh.position);
+    outline.rotation.copy(mesh.rotation);
+    outline.scale.set(1.35, 1.18, 1.6);
+    mesh.parent.add(outline);
+    bookHighlight = { mesh, outline, prevMat: mesh.material, level: levelBigInt, until: clock.elapsedTime + 25 };
+    mesh.material = highlightMat;
+
+    const loc = getLoc(shelfIdx, rowIdx, bookIdx);
+    toast((note || '') + `${formatFloorDisplay(levelBigInt)} — ${loc.wall} · ${loc.shelf} · #${loc.pos} — follow the gold glow`, 8000);
+}
+
+// ================= Elevator Travel & Score Search =================
+function toast(msg, ms) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(toast._t);
+    if (ms) toast._t = setTimeout(() => el.style.display = 'none', ms);
+}
+
+function setFade(on) {
+    const f = document.getElementById('fade');
+    f.style.transition = 'opacity 0.55s';
+    f.style.opacity = on ? '1' : '0';
+}
+
+function openElevUI() {
+    uiOpen = true;
+    document.exitPointerLock();
+    document.getElementById('elev-where').textContent = 'Cabin at ' + formatFloorDisplay(elev.cabinLevel);
+    document.getElementById('elev-status').textContent = '';
+    document.getElementById('elev-input').value = (elev.cabinLevel + 1n).toString();
+    document.getElementById('elev-ui').style.display = 'flex';
+}
+
+function closeElevUI() {
+    uiOpen = false;
+    document.getElementById('elev-ui').style.display = 'none';
+    if (!bookOpen && gameStarted) {
+        renderer.domElement.requestPointerLock();
+    }
+}
+
+function startTravel(targetLevelBigInt) {
+    AmbientAudio.ensure();
+    AmbientAudio.startBackground();
+    elev.busy = true;
+    elev.phase = 'closing';
+    elev.from = elev.cabinLevel;
+    elev.to = targetLevelBigInt;
+    pos.x = ELEV.cx; pos.z = ELEV.cz;
+    vy = 0;
+}
+
+function elevRebase() {
+    for (const k of Array.from(levels.keys())) unloadLevel(k);
+    baseTrue = elev.to;
+    elev.cabinY = 0;
+    cabinG.position.y = 0;
+    pos.x = ELEV.cx; pos.z = ELEV.cz;
+    playerY = EYE; vy = 0; onGround = true;
+    elev.cabinLevel = elev.to;
+    for (let L = elev.to - 1n; L <= elev.to + 1n; L++) buildLevel(L);
+    elev.doorT = 0;
+    const p = doorsByLevel.get(elev.to);
+    if (p) setDoorPair(p, 0);
+    setDoorPair(cabinDoors, 0);
+}
+
+function updateElevator(dt) {
+    if (!elev.busy) return;
+    if (elev.phase === 'closing') {
+        elev.doorT = Math.max(0, elev.doorT - dt / 0.7);
+        const p = doorsByLevel.get(elev.cabinLevel);
+        if (p) setDoorPair(p, elev.doorT);
+        setDoorPair(cabinDoors, elev.doorT);
+        if (elev.doorT <= 0) { elev.phase = 'fadeout'; elev.pt = 0.65; setFade(true); }
+    } else if (elev.phase === 'fadeout') {
+        elev.pt -= dt;
+        if (elev.pt <= 0) {
+            elevRebase();
+            elev.phase = 'count'; elev.pt = 1.6;
+            toast('Inverting Musical Feistel Permutation across 2^4096 space...');
+        }
+    } else if (elev.phase === 'count') {
+        elev.pt -= dt;
+        toast('⚱ Traveling to ' + formatFloorDisplay(elev.to) + ' ⚱');
+        if (elev.pt <= 0) { elev.phase = 'fadein'; elev.pt = 0.65; setFade(false); }
+    } else if (elev.phase === 'fadein') {
+        elev.pt -= dt;
+        if (elev.pt <= 0) { elev.phase = 'opening'; AmbientAudio.ding(); }
+    } else if (elev.phase === 'opening') {
+        elev.doorT = Math.min(1, elev.doorT + dt / 0.7);
+        const p = doorsByLevel.get(elev.cabinLevel);
+        if (p) setDoorPair(p, elev.doorT);
+        setDoorPair(cabinDoors, elev.doorT);
+        if (elev.doorT >= 1) {
+            elev.busy = false;
+            elev.phase = 'idle';
+            toast('Arrived at ' + formatFloorDisplay(elev.cabinLevel), 3000);
+            if (pendingHighlight && pendingHighlight.level === elev.cabinLevel) {
+                applyHighlight(pendingHighlight.level, pendingHighlight.shelf, pendingHighlight.row, pendingHighlight.book, pendingHighlight.note);
+                pendingHighlight = null;
+            }
+        }
+    }
+}
+
+// User composer state
+const composerTracks = [[], [], [], []];
+for (let t = 0; t < 4; t++) {
+    for (let s = 0; s < 32; s++) composerTracks[t].push(false);
+}
+let currentCompTrack = 0;
+
+function renderComposerGrid() {
+    const grid = document.getElementById('comp-grid');
+    grid.innerHTML = '';
+    for (let s = 0; s < 32; s++) {
+        const cell = document.createElement('div');
+        cell.className = 'comp-cell';
+        if (composerTracks[currentCompTrack][s]) cell.classList.add('selected');
+        cell.addEventListener('click', () => {
+            composerTracks[currentCompTrack][s] = !composerTracks[currentCompTrack][s];
+            cell.classList.toggle('selected');
+            if (composerTracks[currentCompTrack][s]) {
+                Synth.ensure();
+                Synth.playNote(currentCompTrack, 60 + s % 12, 0.8, 0.2);
+            }
+        });
+        grid.appendChild(cell);
+    }
+}
+
+function handleElevatorAction() {
+    const floorStr = document.getElementById('elev-input').value.trim();
+    let hasNotes = false;
+    for (let t = 0; t < 4; t++) {
+        if (composerTracks[t].some(x => x)) { hasNotes = true; break; }
+    }
+
+    if (hasNotes) {
+        document.getElementById('elev-status').textContent = 'Computing Feistel inverse for score...';
+        setTimeout(() => {
+            const fullScoreTracks = [];
+            for (let t = 0; t < 4; t++) {
+                const trk = [];
+                for (let s = 0; s < STEPS; s++) {
+                    const active = composerTracks[t][s % 32];
+                    trk.push({ active, note: 48 + (s % 24) });
+                }
+                fullScoreTracks.push(trk);
+            }
+            const bytes = scoreToBytes({ bpm: 120, rootKey: 'C', tracks: fullScoreTracks });
+            const match = findBabelCoordinatesForScore(bytes);
+            closeElevUI();
+            if (match.level === elev.cabinLevel && levels.has(match.level)) {
+                applyHighlight(match.level, match.shelf, match.row, match.book, 'Exact Composed Score located: ');
+            } else {
+                pendingHighlight = { level: match.level, shelf: match.shelf, row: match.row, book: match.book, note: 'Exact Composed Score located: ' };
+                startTravel(match.level);
+            }
+        }, 30);
+        return;
+    }
+
+    if (floorStr) {
+        try {
+            const wantFloor = BigInt(floorStr);
+            closeElevUI();
+            if (wantFloor === elev.cabinLevel) {
+                toast('You are already at ' + formatFloorDisplay(wantFloor), 2000);
+                return;
+            }
+            startTravel(wantFloor);
+        } catch (err) {
+            document.getElementById('elev-status').textContent = 'Invalid floor number. Enter any integer.';
+        }
+    }
+}
+
+function copyCurrentFloor() {
+    const fullFloor = elev.cabinLevel.toString();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(fullFloor).then(() => {
+            toast('Full floor coordinate copied (' + fullFloor.length + ' digits)', 3000);
+        });
+    }
+}
+
+// ================= Main Loop =================
+function init() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a0f0a);
+    scene.fog = new THREE.Fog(0x1a0f0a, 18, 70);
+    clock = new THREE.Clock();
+    camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 220);
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
+    renderer.shadowMap.enabled = false;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    document.body.appendChild(renderer.domElement);
+
+    initShared();
+    renderComposerGrid();
+
+    scene.add(new THREE.AmbientLight(0xfff0d0, 0.42));
+    scene.add(new THREE.HemisphereLight(0xfff5e0, 0x8b7355, 0.25));
+    const dl = new THREE.DirectionalLight(0xfff0d0, 0.2);
+    dl.position.set(10, 20, 10);
+    scene.add(dl);
+
+    window.addEventListener('resize', () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+    });
+
+    window.addEventListener('keydown', e => {
+        if (bookOpen) {
+            if (e.code === 'KeyE' || e.code === 'Escape') {
+                e.preventDefault();
+                closeBook();
+            }
+            return;
+        }
+
+        if (uiOpen) {
+            if (e.code === 'Escape') closeElevUI();
+            return;
+        }
+
+        keys[e.code] = true;
+        if (e.code === 'KeyE' && nearBook && !elev.busy) {
+            e.preventDefault();
+            openBook(nearBook);
+        }
+        if (e.code === 'KeyF' && !elev.busy) openElevUI();
+        if (e.code === 'KeyM') AmbientAudio.toggle();
+        if (e.code === 'Escape' && locked) document.exitPointerLock();
+        if (e.code === 'Space' && onGround && locked && !elev.busy) { vy = 6.5; onGround = false; }
+        if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
+    });
+
+    window.addEventListener('keyup', e => keys[e.code] = false);
+
+    window.addEventListener('mousemove', e => {
+        if (!locked || bookOpen || uiOpen) return;
+        if (Math.abs(e.movementX) > 250 || Math.abs(e.movementY) > 250) return;
+        yaw -= e.movementX * 0.0021;
+        pitch -= e.movementY * 0.0021;
+        pitch = Math.max(-1.25, Math.min(1.25, pitch));
+    });
+
+    const startAudioAndLock = () => {
+        gameStarted = true;
+        document.getElementById('blocker').classList.add('hidden');
+        AmbientAudio.ensure();
+        AmbientAudio.startBackground();
+        Synth.ensure();
+        if (!bookOpen && !uiOpen) renderer.domElement.requestPointerLock();
+    };
+
+    renderer.domElement.addEventListener('click', () => {
+        if (!gameStarted) startAudioAndLock();
+        else if (!locked && !bookOpen && !uiOpen) renderer.domElement.requestPointerLock();
+    });
+
+    document.getElementById('blocker').addEventListener('click', startAudioAndLock);
+    document.addEventListener('pointerlockchange', () => {
+        locked = !!document.pointerLockElement;
+        document.getElementById('blocker').classList.toggle('hidden', locked || gameStarted);
+    });
+
+    document.getElementById('close-book').addEventListener('click', closeBook);
+    document.getElementById('score-play-btn').addEventListener('click', () => {
+        if (Synth.isPlaying) Synth.stopPlayback();
+        else if (currentLoadedScore) Synth.startPlayback(currentLoadedScore);
+    });
+
+    document.getElementById('elev-go').addEventListener('click', handleElevatorAction);
+    document.getElementById('elev-cancel').addEventListener('click', closeElevUI);
+    document.getElementById('copy-floor-btn').addEventListener('click', copyCurrentFloor);
+    document.getElementById('elev-input').addEventListener('keydown', e => {
+        e.stopPropagation();
+        if (e.code === 'Enter' || e.code === 'NumpadEnter') handleElevatorAction();
+    });
+
+    document.getElementById('elev-btn').addEventListener('click', () => { if (!bookOpen && !elev.busy && !uiOpen) openElevUI(); });
+    document.getElementById('music-btn').addEventListener('click', () => AmbientAudio.toggle());
+
+    document.querySelectorAll('.composer-track-selector .comp-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.composer-track-selector .comp-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentCompTrack = Number(btn.dataset.track);
+            renderComposerGrid();
+        });
+    });
+
+    document.getElementById('comp-clear-btn').addEventListener('click', () => {
+        for (let t = 0; t < 4; t++) composerTracks[t].fill(false);
+        renderComposerGrid();
+    });
+
+    document.getElementById('comp-random-btn').addEventListener('click', () => {
+        for (let t = 0; t < 4; t++) {
+            for (let s = 0; s < 32; s++) {
+                composerTracks[t][s] = Math.random() < 0.25;
+            }
+        }
+        renderComposerGrid();
+    });
+
+    document.getElementById('comp-preview-btn').addEventListener('click', () => {
+        const fullScoreTracks = [];
+        for (let t = 0; t < 4; t++) {
+            const trk = [];
+            for (let s = 0; s < STEPS; s++) {
+                const active = composerTracks[t][s % 32];
+                trk.push({ active, note: 48 + (s % 24), vel: 0.8, dur: 0.2 });
+            }
+            fullScoreTracks.push(trk);
+        }
+        Synth.startPlayback({ bpm: 120, rootKey: 'C', scaleName: 'Major', tracks: fullScoreTracks });
+    });
+
+    buildLevel(-1n); buildLevel(0n); buildLevel(1n);
+    buildCabin();
+
+    camera.position.set(pos.x, playerY, pos.z);
+    animate();
+}
+
+const _fwd = new THREE.Vector3(), _rgt = new THREE.Vector3(), _ray = new THREE.Raycaster(), _ndc = new THREE.Vector2(0, 0);
+
+function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const t = clock.elapsedTime;
+
+    updateElevator(dt);
+
+    if (!bookOpen && !uiOpen && locked && !elev.busy) {
+        const running = (keys['ShiftLeft'] || keys['ShiftRight']) && (keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD']);
+        const speed = (running ? RUN : WALK) * dt;
+        _fwd.set(-Math.sin(yaw), 0, -Math.cos(yaw));
+        _rgt.set(Math.cos(yaw), 0, -Math.sin(yaw));
+
+        const solids = [
+            { x: -1, z: 0, r: 1.55 },
+            { x: -4.6, z: 4.6, r: 0.5 },
+            { x: 3.6, z: -4.6, r: 0.5 }, { x: 3.6, z: 4.6, r: 0.5 },
+            { x: 1.8, z: 2.5, r: 0.45 }, { x: 1.8, z: -2.5, r: 0.45 }
+        ];
+
+        let moveX = 0, moveZ = 0;
+        if (keys['KeyW']) { moveX += _fwd.x * speed; moveZ += _fwd.z * speed; }
+        if (keys['KeyS']) { moveX -= _fwd.x * speed; moveZ -= _fwd.z * speed; }
+        if (keys['KeyD']) { moveX += _rgt.x * speed; moveZ += _rgt.z * speed; }
+        if (keys['KeyA']) { moveX -= _rgt.x * speed; moveZ -= _rgt.z * speed; }
+
+        const prevX = pos.x, prevZ = pos.z;
+
+        pos.x = Math.max(-PLAY, Math.min(PLAY, pos.x + moveX));
+        for (const s of solids) {
+            const dx = pos.x - s.x, dz = pos.z - s.z;
+            const d2 = dx * dx + dz * dz;
+            if (d2 < s.r * s.r && d2 > 1e-6) {
+                const d = Math.sqrt(d2);
+                pos.x = s.x + dx / d * s.r;
+            }
+        }
+        if (elevSolidAt(pos.x, pos.z) || (inShaft(pos.x, pos.z) && Math.abs(playerY - EYE - elev.cabinY) > 0.6)) {
+            pos.x = prevX;
+        }
+
+        pos.z = Math.max(-PLAY, Math.min(PLAY, pos.z + moveZ));
+        for (const s of solids) {
+            const dx = pos.x - s.x, dz = pos.z - s.z;
+            const d2 = dx * dx + dz * dz;
+            if (d2 < s.r * s.r && d2 > 1e-6) {
+                const d = Math.sqrt(d2);
+                pos.z = s.z + dz / d * s.r;
+            }
+        }
+        if (elevSolidAt(pos.x, pos.z) || (inShaft(pos.x, pos.z) && Math.abs(playerY - EYE - elev.cabinY) > 0.6)) {
+            pos.z = prevZ;
+        }
+
+        if (onGround) {
+            const liV = stairLift(pos.z);
+            if (liV > 0.02 && liV < 0.98 && Math.abs(pos.x - FCX) < 1.35) {
+                let onRamp = false;
+                const feetNow = playerY - EYE;
+                for (const [L, g] of levels.entries()) {
+                    const y0 = Number(L - baseTrue) * CH;
+                    if (Math.abs(y0 + liV * CH - feetNow) <= 0.55) { onRamp = true; break; }
+                }
+                if (onRamp) {
+                    if (pos.x < FX0 + 0.46) pos.x = FX0 + 0.46;
+                    else if (pos.x > FX1 - 0.46) pos.x = FX1 - 0.46;
+                } else if (pos.x > FX0 - 0.05 && pos.x < VOID_X1 + 0.05) {
+                    pos.x = prevX; pos.z = prevZ;
+                }
+            }
+        }
+
+        vy -= 18 * dt;
+        playerY += vy * dt;
+        const feet = playerY - EYE;
+        const gh = groundHeight(pos.x, pos.z, feet);
+        if (gh !== null && playerY <= gh + EYE) {
+            playerY = gh + EYE; vy = 0; onGround = true;
+            safeTrue = baseTrue + BigInt(Math.floor(gh / CH + 1e-6));
+        } else if (gh === null && playerY < -50) {
+            pos.x = -1; pos.z = -2.0;
+            playerY = EYE; vy = 0; onGround = true;
+        } else if (gh !== null && Math.abs(vy) < 0.01 && Math.abs(feet - gh) < 0.05) onGround = true;
+        else if (vy !== 0) onGround = false;
+
+        if (!inHoleRect(HOLE_S, pos.x, pos.z) && !inHoleRect(ELEV, pos.x, pos.z)) {
+            const spaceL = Math.floor((playerY - 0.4) / CH);
+            const ceil = spaceL * CH + CH - 0.25;
+            if (playerY > ceil) { playerY = ceil; vy = Math.min(vy, 0); }
+        }
+
+        let eyeTarget = EYE;
+        if (onGround && inStairX(pos.x)) {
+            const liE = stairLift(pos.z);
+            if (liE >= 0) {
+                const mRel = ((feet % CH) + CH) % CH;
+                if (mRel > 2.8) eyeTarget = Math.max(1.15, EYE - (mRel - 2.8) * 0.55);
+            }
+        }
+        eyeH += (eyeTarget - eyeH) * Math.min(1, dt * 5);
+
+        camera.position.set(pos.x, playerY - EYE + eyeH, pos.z);
+        camera.rotation.order = 'YXZ';
+        camera.rotation.y = yaw;
+        camera.rotation.x = pitch;
+
+        const wantFov = running ? 77 : 70;
+        if (Math.abs(camera.fov - wantFov) > 0.1) {
+            camera.fov += (wantFov - camera.fov) * Math.min(1, dt * 6);
+            camera.updateProjectionMatrix();
+        }
+
+        const curRel = Math.round((playerY - EYE) / CH);
+        const curTrue = baseTrue + BigInt(curRel);
+
+        for (let rel = -2n; rel <= 2n; rel++) buildLevel(curTrue + rel);
+        for (const k of Array.from(levels.keys())) {
+            const diff = k - curTrue;
+            if (diff < -2n || diff > 2n) unloadLevel(k);
+        }
+
+        if (t - lastRay > 0.12) {
+            lastRay = t;
+            _ray.setFromCamera(_ndc, camera);
+            _ray.far = 3.0;
+            const list = booksByLevel.get(curTrue) || [];
+            const hits = list.length ? _ray.intersectObjects(list, false) : [];
+            if (hits.length > 0) {
+                nearBook = hits[0].object;
+                const d = nearBook.userData;
+                const loc = getLoc(d.shelfIdx, d.rowIdx, d.bookIdx);
+                document.getElementById('prompt').textContent = `Press E — Play Score [${loc.wall} · ${loc.shelf} · #${loc.pos}]`;
+                document.getElementById('prompt').style.display = 'block';
+            } else {
+                nearBook = null;
+                document.getElementById('prompt').style.display = 'none';
+            }
+        }
+
+        const dx = pos.x - (ELEV.x1 + 0.4), dz = pos.z - ELEV.cz;
+        nearElev = (dx * dx + dz * dz < 4.0 * 4.0) && Math.abs((playerY - EYE) - elev.cabinY) < 1.6;
+        if (nearElev && !nearBook) {
+            document.getElementById('prompt').textContent = 'Press F — Elevator (' + formatFloorDisplay(elev.cabinLevel) + ')';
+            document.getElementById('prompt').style.display = 'block';
+        } else if (!nearBook) {
+            document.getElementById('prompt').style.display = 'none';
+        }
+
+        document.getElementById('level-display').textContent = formatFloorDisplay(curTrue);
+    } else if (elev.busy) {
+        nearBook = null;
+        eyeH = EYE;
+        document.getElementById('prompt').style.display = 'none';
+        camera.position.set(pos.x, playerY, pos.z);
+        camera.rotation.order = 'YXZ';
+        camera.rotation.y = yaw;
+        camera.rotation.x = pitch;
+    }
+
+    for (const f of flames) {
+        const s = 1 + Math.sin(t * 9 + f.phase) * 0.15 + Math.sin(t * 23 + f.phase * 2) * 0.07;
+        f.mesh.scale.set(s, s * 1.25, s);
+    }
+
+    if (bookHighlight) {
+        if (t > bookHighlight.until) clearHighlight();
+        else {
+            const p = 0.5 + 0.5 * Math.sin(t * 6);
+            if (highlightMat) highlightMat.emissiveIntensity = 0.7 + 0.9 * p;
+            const s = 1.28 + 0.10 * p;
+            bookHighlight.outline.scale.set(s, 1.12 + 0.08 * p, s);
+        }
+    }
+
+    for (const d of dusties) d.pts.rotation.y = t * 0.02;
+
+    renderer.render(scene, camera);
+}
+
+init();
+</script>
+</body>
+</html>
